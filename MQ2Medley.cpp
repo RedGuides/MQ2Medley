@@ -90,7 +90,8 @@ song20=
 
 */
 
-#include "../MQ2Plugin.h" 
+#include "../MQ2Plugin.h"
+using namespace std;
 #include <list>
 #include <deque>
 
