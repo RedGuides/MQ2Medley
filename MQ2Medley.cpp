@@ -240,12 +240,12 @@ void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 int GemCastTime(const string & spellName) // Gem 1 to NUM_SPELL_GEMS
 {
-	DWORD n = 0;
+	VePointer<CONTENTS> n;
 	for (int i = 0; i < NUM_SPELL_GEMS; i++)
 	{
 		PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
 		if (pSpell && spellName.compare(pSpell->Name) == 0) {
-			float mct = (FLOAT)(pCharData1->GetAACastingTimeModifier((EQ_Spell*)pSpell) + pCharData1->GetFocusCastingTimeModifier((EQ_Spell*)pSpell, (EQ_Equipment**)&n, 0) + pSpell->CastTime) / 1000.0f;
+			float mct = (FLOAT)(GetCastingTimeModifier((EQ_Spell*)pSpell) + GetFocusCastingTimeModifier((EQ_Spell*)pSpell, n, 0) + pSpell->CastTime) / 1000.0f;
 			if (mct < 0.50 * pSpell->CastTime / 1000.0f)
 				return (int)(0.50 * (pSpell->CastTime / 100.0f));
 			else
