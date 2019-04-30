@@ -263,7 +263,7 @@ int GemCastTime(const string & spellName) // Gem 1 to NUM_SPELL_GEMS
 //{
 //	DebugSpew("MQ2Medley::getCurrentCastingSpell -ENTER ");
 //	PCSIDLWND pCastingWindow = (PCSIDLWND)pCastingWnd;
-//	if (!pCastingWindow->dShow)
+//	if (!pCastingWindow->IsVisible())
 //	{
 //		DebugSpew("MQ2Medley::getCurrentCastingSpell - not active", szCurrentCastingSpell);
 //		return false;
@@ -903,7 +903,7 @@ PLUGIN_API VOID OnPulse(VOID)
 
 	if (pCastingWnd) {
 		PCSIDLWND pCastingWindow = (PCSIDLWND)pCastingWnd;
-		if (pCastingWindow->dShow == 1)
+		if (pCastingWindow->IsVisible())
 			return;
 		// Don't try to twist if the casting window is up, it implies the previous song 
 		// is still casting, or the user is manually casting a song between our twists 
