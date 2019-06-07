@@ -977,9 +977,9 @@ PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color)
 
 	// if (!strcmp(Line, "You haven't recovered yet...")) WriteChatf("MQ2Medley::Have not recovered");
 
-	if (!strcmp(Line, "You miss a note, bringing your song to a close!") ||
+	if ((strstr(Line, "You miss a note, bringing your ") && strstr(Line, " to a close!")) ||
 		!strcmp(Line, "You haven't recovered yet...") ||
-		!strcmp(Line, "Your spell is interrupted.")) {
+		(strstr(Line, "Your ") && strstr(Line, " spell is interrupted."))) {
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event: %s", Line);
 		bWasInterrupted = true;
 		CastDue = -1;
