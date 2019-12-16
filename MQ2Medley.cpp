@@ -326,52 +326,57 @@ long doCast(const SongData SongTodo)
 	DebugSpew("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
 	//WriteChatf("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
 	char szTemp[MAX_STRING] = { 0 };
-
-	switch (SongTodo.type) {
-	case SongData::SONG:
-		for (int i = 0; i < NUM_SPELL_GEMS; i++)
+	if (GetCharInfo())
+	{
+		if (GetCharInfo()->pSpawn)
 		{
-			PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
-			if (pSpell && SongTodo.name.compare(pSpell->Name) == 0) {
-				int gemNum = i + 1;
+			switch (SongTodo.type) {
+			case SongData::SONG:
+				for (int i = 0; i < NUM_SPELL_GEMS; i++)
+				{
+					PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
+					if (pSpell && SongTodo.name.compare(pSpell->Name) == 0) {
+						int gemNum = i + 1;
 
-				if (!SongTodo.targetID) {
-					// do nothing special
-				}
-				else if (PSPAWNINFO Target = (PSPAWNINFO)GetSpawnByID(SongTodo.targetID)) {
-					TargetSave = pTarget ? (PSPAWNINFO)pTarget : NULL;
-					*(PSPAWNINFO*)ppTarget = Target;
-					DebugSpew("MQ2Medley::doCast - Set target to %d", Target->SpawnID);
-				}
-				else {
-					WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
-					return -1;
-				}
+						if (!SongTodo.targetID) {
+							// do nothing special
+						}
+						else if (PSPAWNINFO Target = (PSPAWNINFO)GetSpawnByID(SongTodo.targetID)) {
+							TargetSave = pTarget ? (PSPAWNINFO)pTarget : NULL;
+							*(PSPAWNINFO*)ppTarget = Target;
+							DebugSpew("MQ2Medley::doCast - Set target to %d", Target->SpawnID);
+						}
+						else {
+							WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
+							return -1;
+						}
 
-				sprintf_s(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
-				MQ2MedleyDoCommand(NULL, szTemp);
+						sprintf_s(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+						MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 
+						return SongTodo.castTime;
+					}
+				}
+				WriteChatf("MQ2Medley::doCast - could not find \"%s\" to cast, SKIPPING", SongTodo.name.c_str());
+
+				return -1;
+				break;
+			case SongData::ITEM:
+				DebugSpew("MQ2Medley::doCast - Next Song (Casting Item  \"%s\")", SongTodo.name.c_str());
+				sprintf_s(szTemp, "/multiline ; /stopsong ; /cast item \"%s\"", SongTodo.name.c_str());
+				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 				return SongTodo.castTime;
+			case SongData::AA:
+				DebugSpew("MQ2Medley::doCast - Next Song (Casting AA  \"%s\")", SongTodo.name.c_str());
+				sprintf_s(szTemp, "/multiline ; /stopsong ; /alt act ${Me.AltAbility[%s].ID}", SongTodo.name.c_str());
+				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
+				return SongTodo.castTime;
+			default:
+				// This is the null song - do nothing. 
+				WriteChatf("MQ2Medley::doCast - unsupported type %d for \"%s\", SKIPPING", SongTodo.type, SongTodo.name.c_str());
+				return -1; // todo
 			}
 		}
-		WriteChatf("MQ2Medley::doCast - could not find \"%s\" to cast, SKIPPING", SongTodo.name.c_str());
-
-		return -1;
-		break;
-	case SongData::ITEM:
-		DebugSpew("MQ2Medley::doCast - Next Song (Casting Item  \"%s\")", SongTodo.name.c_str());
-		sprintf_s(szTemp, "/multiline ; /stopsong ; /cast item \"%s\"", SongTodo.name.c_str());
-		MQ2MedleyDoCommand(NULL, szTemp);
-		return SongTodo.castTime;
-	case SongData::AA:
-		DebugSpew("MQ2Medley::doCast - Next Song (Casting AA  \"%s\")", SongTodo.name.c_str());
-		sprintf_s(szTemp, "/multiline ; /stopsong ; /alt act ${Me.AltAbility[%s].ID}", SongTodo.name.c_str());
-		MQ2MedleyDoCommand(NULL, szTemp);
-		return SongTodo.castTime;
-	default:
-		// This is the null song - do nothing. 
-		WriteChatf("MQ2Medley::doCast - unsupported type %d for \"%s\", SKIPPING", SongTodo.type, SongTodo.name.c_str());
-		return -1; // todo
 	}
 }
 
@@ -681,6 +686,8 @@ bool CheckCharState()
 		return false;
 
 	if (GetCharInfo()) {
+		if (!GetCharInfo()->pSpawn)
+			return false;
 		if (GetCharInfo()->Stunned == 1)
 			return false;
 		switch (GetCharInfo()->standstate) {
@@ -689,7 +696,7 @@ bool CheckCharState()
 			//bTwist = false;
 			return false;
 		case STANDSTATE_FEIGN:
-			MQ2MedleyDoCommand(NULL, "/stand");
+			MQ2MedleyDoCommand(GetCharInfo()->pSpawn, "/stand");
 			return false;
 		case STANDSTATE_DEAD:
 			WriteChatf("\arMQ2Medley\au::\ayStopping Twist.");
