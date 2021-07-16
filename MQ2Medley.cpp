@@ -1,36 +1,36 @@
-// MQ2Medley.cpp - Bard song scheduling plugin for MacroQuest2 
-// 
+// MQ2Medley.cpp - Bard song scheduling plugin for MacroQuest2
+//
 // Changelog
 //   2015-07-08 Winnower - Initial release
 //   2016-06-22 Dewey    - Updated for current core MQ source: bump to v 1.01
 //							- fixed using instant cast AA's
-//							- fixed TLO ${Medley.Tune} so it does not CTD  
-//							- fixed TLO ${Medley.Medley} so it returns correct set. 
-//							- /medley quiet is now a lot more quiet. 
+//							- fixed TLO ${Medley.Tune} so it does not CTD
+//							- fixed TLO ${Medley.Medley} so it returns correct set.
+//							- /medley quiet is now a lot more quiet.
 //   2016-06-22 Dewey    - Updated for current core MQ source: bump to v 1.02
 //							- fixed recast calculations due to core changes to TLO ${Spell[].CastTime}
 //							- /medley debug now toggles some extra debug spam.
 //   2016-07-10 Dewey    - Added SongIF which works like MQ2Melee SkillIF[] : bump to v 1.03
-//							- /medley debug now saves its state and shows which song it is evaluating. 
+//							- /medley debug now saves its state and shows which song it is evaluating.
 //   2016-07-11 Dewey    - Medley is now much more persistent, like priority version of MQ2Melee. Bump to v1.04
 //							- Any time  Medley set or Twist changes state it should write Medley=[SET] and Playing=[0|1] to the ini.
 //							- Sitting, Hover, Death and FD no longer turn off twist, instead they pause playback.
 //   2016-07-17 Dewey	 - Modified Once/Queue'd spells now check to see if they are ready to cast. Bump to v1.05
 //							-Modified profile loading.Should no longer spam NULL songs when loading empty profiles.
 //   2016-07-18 Dewey	 - Modified once so it shares the same spell list.  v1.06
-//							- ${Medley.getTimeTillQueueEmpty} broken. 
+//							- ${Medley.getTimeTillQueueEmpty} broken.
 //							- Experimental support for dynamic target from profile supporting mezing XTarget[n]
 //   2016-07-26 Dewey	 - Updated for the eqMules MANDITORY STRING SAFETY DANCE.  v1.07
-//							
 //
-//----------------- 
+//
+//-----------------
 // MQ2Twist contributers:
-//    koad 03-24-04 Original plugin (http://macroquest.sourceforge.net/phpBB2/viewtopic.php?t=5962&start=2) 
-//    CyberTech 03-31-04 w/ code/ideas from Falco72 & Space-boy 
-//    Cr4zyb4rd 08-19-04 taking over janitorial duties 
-//    Pheph 08-24-04 cleaning up use of MQ2Data 
-//    Simkin 12-17-07 Updated for Secrets of Faydwer 10 Songs 
-//    MinosDis 05-01-08 Updated to fix /twist once 
+//    koad 03-24-04 Original plugin (http://macroquest.sourceforge.net/phpBB2/viewtopic.php?t=5962&start=2)
+//    CyberTech 03-31-04 w/ code/ideas from Falco72 & Space-boy
+//    Cr4zyb4rd 08-19-04 taking over janitorial duties
+//    Pheph 08-24-04 cleaning up use of MQ2Data
+//    Simkin 12-17-07 Updated for Secrets of Faydwer 10 Songs
+//    MinosDis 05-01-08 Updated to fix /twist once
 //    dewey2461 09-19-09 Updated to let you twist AA abilities and define clicky/AA songs from inside the game
 //    htw 09-22-09+ See changes below
 //    gSe7eN 04-03-12 Fixed Show to dShow for March 31st build
@@ -112,7 +112,7 @@ public:
 
 	std::string name;
 	SpellType type;
-	bool once;					// is this a cast once spell? 
+	bool once;					// is this a cast once spell?
 	int castTime;				// 10ths of second
 	unsigned long targetID;		// SpawnID
 	std::string durationExp;	// duration in seconds, how long the spell lasts, evaluated with Math.Calc
@@ -166,7 +166,7 @@ void resetTwistData()
 	WritePrivateProfileString("MQ2Medley", "Medley", "", INIFileName);
 }
 
-//get current timestamp in tenths of a second 
+//get current timestamp in tenths of a second
 __int64 GetTime()
 {
 	return (__int64)(MQGetTickCount64() / 100);
@@ -192,7 +192,7 @@ double getTimeTillQueueEmpty()
 }
 
 void Evaluate(char *zOutput, char *zFormat, ...) {
-	//char zOutput[MAX_STRING]={0}; 
+	//char zOutput[MAX_STRING]={0};
 	va_list vaList;
 	va_start(vaList, zFormat);
 	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
@@ -282,7 +282,7 @@ SongData getSongData(const char * name)
 {
 	string spellName = name;  // gem spell, item, or AA
 
-							  // if spell name is a # convert to name for that gem
+	                          // if spell name is a # convert to name for that gem
 	const int spellNum = (int)strtol(name, NULL, 10);   // will return 0 on the strings
 	if (spellNum>0 && spellNum <= NUM_SPELL_GEMS) {
 		DebugSpew("MQ2Medley::TwistCommand Parsing gem %d", spellNum);
@@ -318,7 +318,7 @@ SongData getSongData(const char * name)
 }
 
 // returns time it will take to cast (in 1/10 seconds)
-// preconditions: 
+// preconditions:
 //   SongTodo is ready to cast
 // -1 - cast failed
 long doCast(const SongData SongTodo)
@@ -372,7 +372,7 @@ long doCast(const SongData SongTodo)
 				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 				return SongTodo.castTime;
 			default:
-				// This is the null song - do nothing. 
+				// This is the null song - do nothing.
 				WriteChatf("MQ2Medley::doCast - unsupported type %d for \"%s\", SKIPPING", SongTodo.type, SongTodo.name.c_str());
 				return -1; // todo
 			}
@@ -484,10 +484,10 @@ void DisplayMedleyHelp() {
 	WriteChatf("\arMQ2Medley \au- \atSong Scheduler - read documentation online");
 }
 
-// **************************************************  ************************* 
-// Function:      MedleyCommand 
+// **************************************************  *************************
+// Function:      MedleyCommand
 // Description:   Our /medley command. schedule songs to sing
-// **************************************************  ************************* 
+// **************************************************  *************************
 void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 {
 	char szTemp[MAX_STRING] = { 0 }, szTemp1[MAX_STRING] = { 0 };
@@ -563,7 +563,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		return;
 	}
 
-	// check help arg, or display if we have no songs defined and /twist was used 
+	// check help arg, or display if we have no songs defined and /twist was used
 	if (!strlen(szTemp) || !_strnicmp(szTemp, "help", 4)) {
 		DisplayMedleyHelp();
 		return;
@@ -809,9 +809,9 @@ BOOL dataMedley(PCHAR szName, MQ2TYPEVAR &Dest)
 }
 
 
-// ****************************** 
-// **** MQ2 API Calls Follow **** 
-// ****************************** 
+// ******************************
+// **** MQ2 API Calls Follow ****
+// ******************************
 
 PLUGIN_API VOID InitializePlugin(VOID)
 {
@@ -912,8 +912,8 @@ PLUGIN_API VOID OnPulse(VOID)
 		PCSIDLWND pCastingWindow = (PCSIDLWND)pCastingWnd;
 		if (pCastingWindow->IsVisible())
 			return;
-		// Don't try to twist if the casting window is up, it implies the previous song 
-		// is still casting, or the user is manually casting a song between our twists 
+		// Don't try to twist if the casting window is up, it implies the previous song
+		// is still casting, or the user is manually casting a song between our twists
 	}
 
 	if (SongIF[0] != 0)
@@ -925,7 +925,7 @@ PLUGIN_API VOID OnPulse(VOID)
 	}
 
 	// get the next song
-	//DebugSpew("MQ2Medley::Pulse (twist) before cast, CurrSong=%d, PrevSong = %d, CastDue -GetTime() = %d", CurrSong, PrevSong, (CastDue-GetTime())); 
+	//DebugSpew("MQ2Medley::Pulse (twist) before cast, CurrSong=%d, PrevSong = %d, CastDue -GetTime() = %d", CurrSong, PrevSong, (CastDue-GetTime()));
 	if (((CastDue - GetTime()) <= 0)) {
 		DebugSpew("MQ2Medley::Pulse - time for next cast");
 		if (bWasInterrupted && currentSong.type != SongData::NOT_FOUND && currentSong.isReady())
@@ -980,7 +980,7 @@ PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color)
 	char szMsg[MAX_STRING] = { 0 };
 	if (!bTwist || !MQ2MedleyEnabled)
 		return 0;
-	// DebugSpew("MQ2Medley::OnIncomingChat(%s)",Line); 
+	// DebugSpew("MQ2Medley::OnIncomingChat(%s)",Line);
 
 	// if (!strcmp(Line, "You haven't recovered yet...")) WriteChatf("MQ2Medley::Have not recovered");
 
@@ -997,7 +997,7 @@ PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color)
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event (stun)");
 		bWasInterrupted = true;
 		CastDue = GetTime() + 10;
-		// Wait one second before trying again, to avoid spamming the trigger text w/ cast attempts 
+		// Wait one second before trying again, to avoid spamming the trigger text w/ cast attempts
 		return 0;
 	}
 	return 0;
