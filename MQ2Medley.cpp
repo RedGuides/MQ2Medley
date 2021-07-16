@@ -90,15 +90,12 @@ song20=
 
 */
 
-#include "../MQ2Plugin.h"
-using namespace std;
-#include <list>
-#include <deque>
+#include <mq/Plugin.h>
 
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.07);
-#define   PLUGIN_DATE   "20160726"
-#define MAX_MEDLEY_SIZE 30
+
+constexpr int MAX_MEDLEY_SIZE = 30;
 
 class SongData
 {
@@ -134,10 +131,10 @@ const SongData nullSong = SongData("", SongData::NOT_FOUND, -1);
 
 bool MQ2MedleyEnabled = false;
 long CAST_PAD_TIME = 3;                  // in 10ths of seconds, to give spell time to finish
-list <SongData> medley;                // medley[n] = stores medley list
-string medleyName;
+std::list<SongData> medley;                // medley[n] = stores medley list
+std::string medleyName;
 
-map< string, __int64 > songExpires;   // when cast, songExpires["songName"] = GetTime() * SongDurationSeconds*10
+std::map<std::string, __int64 > songExpires;   // when cast, songExpires["songName"] = GetTime() * SongDurationSeconds*10
 									  // song to song state variables
 SongData currentSong = nullSong;
 boolean bWasInterrupted = false;
@@ -206,7 +203,7 @@ void Evaluate(char *zOutput, char *zFormat, ...) {
 // -1 if not found
 // cast time in 10th of seconds if found
 // Note: CastTime TLO changed now returns milliseconds so take result / 100 to get 10ths of a sec
-long GetItemCastTime(string ItemName)
+long GetItemCastTime(std::string ItemName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${FindItem[=%s].CastTime}", ItemName.c_str());
@@ -220,7 +217,7 @@ long GetItemCastTime(string ItemName)
 
 // -1 if not found
 // cast time in 10th of seconds if found
-long GetAACastTime(string AAName)
+long GetAACastTime(std::string AAName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Me.AltAbility[%s].Spell.CastTime}", AAName.c_str());
@@ -238,12 +235,12 @@ void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
 	HideDoCommand(pChar, szLine, FromPlugin);
 }
 
-int GemCastTime(const string & spellName) // Gem 1 to NUM_SPELL_GEMS
+int GemCastTime(const std::string& spellName) // Gem 1 to NUM_SPELL_GEMS
 {
 	VePointer<CONTENTS> n;
 	for (int i = 0; i < NUM_SPELL_GEMS; i++)
 	{
-		PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
+		PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
 		if (pSpell && spellName.compare(pSpell->Name) == 0) {
 			float mct = (FLOAT)(GetCastingTimeModifier((EQ_Spell*)pSpell) + GetFocusCastingTimeModifier((EQ_Spell*)pSpell, n, 0) + pSpell->CastTime) / 1000.0f;
 			if (mct < 0.50 * pSpell->CastTime / 1000.0f)
@@ -278,15 +275,15 @@ int GemCastTime(const string & spellName) // Gem 1 to NUM_SPELL_GEMS
 //}
 
 
-SongData getSongData(const char * name)
+SongData getSongData(const char* name)
 {
-	string spellName = name;  // gem spell, item, or AA
+	std::string spellName = name;  // gem spell, item, or AA
 
 	                          // if spell name is a # convert to name for that gem
 	const int spellNum = (int)strtol(name, NULL, 10);   // will return 0 on the strings
 	if (spellNum>0 && spellNum <= NUM_SPELL_GEMS) {
 		DebugSpew("MQ2Medley::TwistCommand Parsing gem %d", spellNum);
-		PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[spellNum - 1]);
+		PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[spellNum - 1]);
 		if (pSpell) {
 			spellName = pSpell->Name;
 		}
@@ -321,7 +318,7 @@ SongData getSongData(const char * name)
 // preconditions:
 //   SongTodo is ready to cast
 // -1 - cast failed
-long doCast(const SongData SongTodo)
+int doCast(const SongData SongTodo)
 {
 	DebugSpew("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
 	//WriteChatf("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
@@ -334,7 +331,7 @@ long doCast(const SongData SongTodo)
 			case SongData::SONG:
 				for (int i = 0; i < NUM_SPELL_GEMS; i++)
 				{
-					PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
+					PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
 					if (pSpell && SongTodo.name.compare(pSpell->Name) == 0) {
 						int gemNum = i + 1;
 
@@ -342,8 +339,8 @@ long doCast(const SongData SongTodo)
 							// do nothing special
 						}
 						else if (PSPAWNINFO Target = (PSPAWNINFO)GetSpawnByID(SongTodo.targetID)) {
-							TargetSave = pTarget ? (PSPAWNINFO)pTarget : NULL;
-							*(PSPAWNINFO*)ppTarget = Target;
+							TargetSave = pTarget;
+							pTarget = Target;
 							DebugSpew("MQ2Medley::doCast - Set target to %d", Target->SpawnID);
 						}
 						else {
@@ -378,6 +375,7 @@ long doCast(const SongData SongTodo)
 			}
 		}
 	}
+	return -1;
 }
 
 template <unsigned int _Size>LPSTR SafeItoa(int _Value, char(&_Buffer)[_Size], int _Radix)
@@ -390,10 +388,10 @@ template <unsigned int _Size>LPSTR SafeItoa(int _Value, char(&_Buffer)[_Size], i
 }
 
 void Update_INIFileName(PCHARINFO pCharInfo) {
-	sprintf_s(INIFileName, "%s\\%s_%s.ini", gszINIPath, EQADDR_SERVERNAME, pCharInfo->Name);
+	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, EQADDR_SERVERNAME, pCharInfo->Name);
 }
 
-void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, string medleyName);
+void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName);
 void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 {
 	char szTemp[MAX_STRING] = { 0 };
@@ -416,17 +414,17 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 	}
 }
 
-void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, string medleyName)
+void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName)
 {
 	char szTemp[MAX_STRING] = { 0 };
 	char *pNext;
 
 	Update_INIFileName(pCharInfo);
 
-	string iniSection = "MQ2Medley-" + medleyName;
+	std::string iniSection = "MQ2Medley-" + medleyName;
 	for (int i = 0; i < MAX_MEDLEY_SIZE; i++)
 	{
-		string iniKey = "song" + std::to_string(i + 1);
+		std::string iniKey = "song" + std::to_string(i + 1);
 		if (GetPrivateProfileString(iniSection.c_str(), iniKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
 		{
 			SongData medleySong = nullSong;
@@ -737,71 +735,62 @@ public:
 
 	~MQ2MedleyType() {}
 
-	bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR &Dest) {
-		PMQ2TYPEMEMBER pMember = MQ2MedleyType::FindMember(Member);
+	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, char* Index, MQTypeVar& Dest) override {
+		MQTypeMember* pMember = MQ2MedleyType::FindMember(Member);
 		if (!pMember)
 			return false;
-		switch ((MedleyMembers)pMember->ID) {
-		case Medley:
-			/* Returns: string
-			current medley name
-			empty string if no current medly
-			*/
-			sprintf_s(szTemp, "%s", medleyName.c_str());
-			//medleyName.copy(szTemp, MAX_STRING);
-			Dest.Ptr = szTemp;
-			Dest.Type = pStringType;
-			return true;
-		case TTQE:
-			/* Returns: double
-			0 - if nothing is queued and performing normal medley
-			#.# - double estimate time till queue is completed
-			*/
-			Dest.Double = getTimeTillQueueEmpty();
-			Dest.Type = pDoubleType;
-			return true;
-		case Tune:
-			/* Returns: int
-			0 - not buffed with A Tune Stuck in My Head
-			1 - buffed with A Tune Stuck in My Head
-			*/
-			Dest.Int = 0;
-			Dest.Type = pIntType;
-			char zOutput[MAX_STRING];
-			sprintf_s(zOutput, "${Me.Buff[Tune Stuck In Your Head].ID}");
-			ParseMacroData(zOutput,MAX_STRING);
-			Dest.Int = atof(zOutput) != 0.0;
-			return true;
-		case Active:
-			/* Returns: boolean
-			true - medley is active
-			*/
-			Dest.Int = bTwist;
-			Dest.Type = pBoolType;
-			return true;
-
+		switch (pMember->ID) {
+			case Medley:
+				/* Returns: string
+				current medley name
+				empty string if no current medly
+				*/
+				sprintf_s(szTemp, "%s", medleyName.c_str());
+				//medleyName.copy(szTemp, MAX_STRING);
+				Dest.Ptr = szTemp;
+				Dest.Type = mq::datatypes::pStringType;
+				return true;
+			case TTQE:
+				/* Returns: double
+				0 - if nothing is queued and performing normal medley
+				#.# - double estimate time till queue is completed
+				*/
+				Dest.Double = getTimeTillQueueEmpty();
+				Dest.Type = mq::datatypes::pDoubleType;
+				return true;
+			case Tune:
+				/* Returns: int
+				0 - not buffed with A Tune Stuck in My Head
+				1 - buffed with A Tune Stuck in My Head
+				*/
+				Dest.Int = 0;
+				Dest.Type = mq::datatypes::pIntType;
+				char zOutput[MAX_STRING];
+				sprintf_s(zOutput, "${Me.Buff[Tune Stuck In Your Head].ID}");
+				ParseMacroData(zOutput,MAX_STRING);
+				Dest.Int = atof(zOutput) != 0.0;
+				return true;
+			case Active:
+				/* Returns: boolean
+				true - medley is active
+				*/
+				Dest.Int = bTwist;
+				Dest.Type = mq::datatypes::pBoolType;
+				return true;
+			default:
+				break;
 		}
 		return false;
 	}
 
-	bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) {
-		if (bTwist)
-			strcpy_s(Destination,MAX_STRING, "TRUE");
-		else
-			strcpy_s(Destination,MAX_STRING, "FALSE");
+	bool ToString(MQVarPtr VarPtr, char* Destination) override
+	{
+		strcpy_s(Destination, MAX_STRING, bTwist ? "TRUE" : "FALSE");
 		return true;
-	}
-
-	bool FromData(MQ2VARPTR &VarPtr, MQ2TYPEVAR &Source) {
-		return false;
-	}
-
-	bool FromString(MQ2VARPTR &VarPtr, PCHAR Source) {
-		return false;
 	}
 };
 
-BOOL dataMedley(PCHAR szName, MQ2TYPEVAR &Dest)
+bool dataMedley(const char* szIndex, MQTypeVar& Dest)
 {
 	Dest.DWord = 1;
 	Dest.Type = pMedleyType;
@@ -813,16 +802,16 @@ BOOL dataMedley(PCHAR szName, MQ2TYPEVAR &Dest)
 // **** MQ2 API Calls Follow ****
 // ******************************
 
-PLUGIN_API VOID InitializePlugin(VOID)
+PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2Medley");
 	AddCommand("/medley", MedleyCommand, 0, 1, 1);
 	AddMQ2Data("Medley", dataMedley);
 	pMedleyType = new MQ2MedleyType;
-	WriteChatf("\atMQ2Medley \agv%1.2f \ax(\am%s\ax) loaded.", MQ2Version, PLUGIN_DATE);
+	WriteChatf("\atMQ2Medley \agv%1.2f \ax loaded.", MQ2Version);
 }
 
-PLUGIN_API VOID ShutdownPlugin(VOID)
+PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("MQ2Medley::Shutting down");
 	RemoveCommand("/medley");
@@ -883,7 +872,7 @@ const SongData scheduleNextSong()
 	}
 }
 
-PLUGIN_API VOID OnPulse(VOID)
+PLUGIN_API void OnPulse()
 {
 	char szTemp[MAX_STRING] = { 0 };
 
@@ -900,20 +889,18 @@ PLUGIN_API VOID OnPulse(VOID)
 		//if (getCurrentCastingSpell() && currentSong.name.compare(szCurrentCastingSpell) == 0)
 		//{
 		DebugSpew("MQ2Medley::pulse - restoring target to SpawnID %d", TargetSave->SpawnID);
-		*(PSPAWNINFO*)ppTarget = TargetSave;
-		TargetSave = NULL;
+		pTarget = TargetSave;
+		TargetSave = nullptr;
 		//	return;
 		//}
 		//DebugSpew("MQ2Medley::pulse - state not ready to restore target");
 		//return;
 	}
 
-	if (pCastingWnd) {
-		PCSIDLWND pCastingWindow = (PCSIDLWND)pCastingWnd;
-		if (pCastingWindow->IsVisible())
-			return;
+	if (pCastingWnd && pCastingWnd->IsVisible()) {
 		// Don't try to twist if the casting window is up, it implies the previous song
 		// is still casting, or the user is manually casting a song between our twists
+		return;
 	}
 
 	if (SongIF[0] != 0)
@@ -975,11 +962,11 @@ PLUGIN_API VOID OnPulse(VOID)
 
 //#Event Immune "Your target cannot be mesmerized#*#"
 
-PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color)
+PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color)
 {
 	char szMsg[MAX_STRING] = { 0 };
 	if (!bTwist || !MQ2MedleyEnabled)
-		return 0;
+		return false;
 	// DebugSpew("MQ2Medley::OnIncomingChat(%s)",Line);
 
 	// if (!strcmp(Line, "You haven't recovered yet...")) WriteChatf("MQ2Medley::Have not recovered");
@@ -990,23 +977,19 @@ PLUGIN_API DWORD OnIncomingChat(PCHAR Line, DWORD Color)
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event: %s", Line);
 		bWasInterrupted = true;
 		CastDue = -1;
-		return 0;
-	}
-
-	if (!strcmp(Line, "You can't cast spells while stunned!")) {
+	} else if (!strcmp(Line, "You can't cast spells while stunned!")) {
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event (stun)");
 		bWasInterrupted = true;
-		CastDue = GetTime() + 10;
 		// Wait one second before trying again, to avoid spamming the trigger text w/ cast attempts
-		return 0;
+		CastDue = GetTime() + 10;
 	}
-	return 0;
+	return false;
 }
 
-PLUGIN_API VOID SetGameState(DWORD GameState)
+PLUGIN_API void SetGameState(int GameState)
 {
 	DebugSpew("MQ2Medley::SetGameState()");
-	if (gGameState == GAMESTATE_INGAME) {
+	if (GameState == GAMESTATE_INGAME) {
 		MQ2MedleyEnabled = true;
 		PCHARINFO pCharInfo = GetCharInfo();
 		if (!Initialized && pCharInfo) {
@@ -1015,7 +998,7 @@ PLUGIN_API VOID SetGameState(DWORD GameState)
 		}
 	}
 	else {
-		if (gGameState == GAMESTATE_CHARSELECT)
+		if (GameState == GAMESTATE_CHARSELECT)
 			Initialized = false;
 		MQ2MedleyEnabled = false;
 	}
@@ -1044,7 +1027,7 @@ bool SongData::isReady() {
 	case SongData::SONG:
 		for (int i = 0; i < NUM_SPELL_GEMS; i++)
 		{
-			PSPELL pSpell = GetSpellByID(GetCharInfo2()->MemorizedSpells[i]);
+			PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
 			if (pSpell && name.compare(pSpell->Name) == 0)
 				return GetSpellGemTimer(i) == 0;
 		}
