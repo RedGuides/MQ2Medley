@@ -388,7 +388,7 @@ template <unsigned int _Size>LPSTR SafeItoa(int _Value, char(&_Buffer)[_Size], i
 }
 
 void Update_INIFileName(PCHARINFO pCharInfo) {
-	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, EQADDR_SERVERNAME, pCharInfo->Name);
+	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, GetServerShortName(), pCharInfo->Name);
 }
 
 void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName);
