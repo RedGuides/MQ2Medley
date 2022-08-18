@@ -523,6 +523,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (!_strnicmp(szTemp, "reload", 6) || !_strnicmp(szTemp, "load", 4)) {
 		WriteChatf("\arMQ2Medley\au::\atReloading INI Values.");
+		medley.clear();
 		Load_MQ2Medley_INI(GetCharInfo());
 		return;
 	}
