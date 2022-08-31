@@ -95,6 +95,8 @@ song20=
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.07);
 
+#define PLUGIN_MSG "\arMQMedley\au:: "
+
 constexpr int MAX_MEDLEY_SIZE = 30;
 
 class SongData
@@ -288,7 +290,7 @@ SongData getSongData(const char* name)
 			spellName = pSpell->Name;
 		}
 		else {
-			WriteChatf("\arMQ2Medley\au::\arInvalid spell number specified (\ay%s\ar) - ignoring.", name);
+			WriteChatf(PLUGIN_MSG "\arInvalid spell number specified (\ay%s\ar) - ignoring.", name);
 			return nullSong;
 		}
 	}
@@ -472,7 +474,7 @@ void StopTwistCommand(PSPAWNINFO pChar, PCHAR szLine)
 	currentSong = nullSong;
 	MQ2MedleyDoCommand(pChar, "/stopsong");
 	if (_strnicmp(szTemp, "silent", 6))
-		WriteChatf("\arMQ2Medley\au::\atStopping Medley");
+		WriteChatf(PLUGIN_MSG "\atStopping Medley");
 	WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
 }
 
@@ -498,7 +500,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	if ((!medley.empty() && (!strlen(szTemp)) || !_strnicmp(szTemp, "start", 5))) {
 		GetArg(szTemp1, szLine, 2);
 		if (_strnicmp(szTemp1, "silent", 6))
-			WriteChatf("\arMQ2Medley\au::\atStarting Twist.");
+			WriteChatf(PLUGIN_MSG "\atStarting Twist.");
 		bTwist = true;
 		CastDue = -1;
 		WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
@@ -507,7 +509,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (!_strnicmp(szTemp, "debug", 5)) {
 		DebugMode = !DebugMode;
-		WriteChatf("\arMQ2Medley\au::\atDebug mode is now %s\ax.", DebugMode ? "\ayON" : "\agOFF");
+		WriteChatf(PLUGIN_MSG "\atDebug mode is now %s\ax.", DebugMode ? "\ayON" : "\agOFF");
 		WritePrivateProfileString("MQ2Medley", "Debug", SafeItoa(DebugMode, szTemp, 10), INIFileName);
 		return;
 	}
@@ -522,7 +524,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	}
 
 	if (!_strnicmp(szTemp, "reload", 6) || !_strnicmp(szTemp, "load", 4)) {
-		WriteChatf("\arMQ2Medley\au::\atReloading INI Values.");
+		WriteChatf(PLUGIN_MSG "\atReloading INI Values.");
 		medley.clear();
 		Load_MQ2Medley_INI(GetCharInfo());
 		return;
@@ -534,23 +536,23 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			int delay = atoi(szTemp);
 			if (delay < 0)
 			{
-				WriteChatf("\arMQ2Medley\au::\ayWARNING: \arDelay cannot be less than 0, setting to 0");
+				WriteChatf(PLUGIN_MSG "\ayWARNING: \arDelay cannot be less than 0, setting to 0");
 				delay = 0;
 			}
 			CAST_PAD_TIME = delay;
 			Update_INIFileName(GetCharInfo());
 			WritePrivateProfileString("MQ2Medley", "Delay", SafeItoa(CAST_PAD_TIME, szTemp, 10), INIFileName);
-			WriteChatf("\arMQ2Medley\au::\atSet delay to \ag%d\at, INI updated.", CAST_PAD_TIME);
+			WriteChatf(PLUGIN_MSG "\atSet delay to \ag%d\at, INI updated.", CAST_PAD_TIME);
 		}
 		else
-			WriteChatf("\arMQ2Medley\au::\atDelay \ag%d\at.", CAST_PAD_TIME);
+			WriteChatf(PLUGIN_MSG "\atDelay \ag%d\at.", CAST_PAD_TIME);
 		return;
 	}
 
 	if (!_strnicmp(szTemp, "quiet", 5)) {
 		quiet = !quiet;
 		WritePrivateProfileString("MQ2Medley", "Quiet", SafeItoa(quiet, szTemp, 10), INIFileName);
-		WriteChatf("\arMQ2Medley\au::\atNow being %s\at.", quiet ? "\ayquiet" : "\agnoisy");
+		WriteChatf(PLUGIN_MSG "\atNow being %s\at.", quiet ? "\ayquiet" : "\agnoisy");
 		return;
 	}
 
@@ -558,7 +560,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		resetTwistData();
 		StopTwistCommand(pChar, szTemp);
 		if (!quiet)
-			WriteChatf("\arMQ2Medley\au::\ayMedley Cleared.");
+			WriteChatf(PLUGIN_MSG "\ayMedley Cleared.");
 		return;
 	}
 
@@ -572,17 +574,17 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//boolean isInterrupt = true;
 
 	if (!_strnicmp(szTemp, "queue", 4) || !_strnicmp(szTemp, "once", 4)) {
-		WriteChatf("\arMQ2Medley\au::\ayAdding to once queue");
+		WriteChatf(PLUGIN_MSG "\ayAdding to once queue");
 		argNum++;
 
 		GetArg(szTemp, szLine, argNum++);
 		if (!strlen(szTemp)) {
-			WriteChatf("\arMQ2Medley\au::\atqueue requires spell/item/aa to cast", szTemp);
+			WriteChatf(PLUGIN_MSG "\atqueue requires spell/item/aa to cast", szTemp);
 			return;
 		}
 		SongData songData = getSongData(szTemp);
 		if (songData.type == SongData::NOT_FOUND) {
-			WriteChatf("\arMQ2Medley\au::\atUnable to find spell for \"%s\", skipping", szTemp);
+			WriteChatf(PLUGIN_MSG "\atUnable to find spell for \"%s\", skipping", szTemp);
 			return;
 		}
 
@@ -612,7 +614,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	//if (!_strnicmp(szTemp, "improv", 6)) {
 	//	argNum++;
-	//	WriteChatf("\arMQ2Medley\au::\atImprov Medley.");
+	//	WriteChatf(PLUGIN_MSG "\atImprov Medley.");
 	//	medley.clear();
 	//	medleyName = "improv";
 
@@ -626,7 +628,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	//		SongData songData = getSongData(szTemp);
 	//		if (songData.type == SongData::NOT_FOUND) {
-	//			WriteChatf("\arMQ2Medley\au::\atUnable to find spell for \"%s\", skipping", szTemp);
+	//			WriteChatf(PLUGIN_MSG "\atUnable to find spell for \"%s\", skipping", szTemp);
 	//			continue;
 	//		}
 
@@ -636,7 +638,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//	}
 
 	//	if (!quiet)
-	//		WriteChatf("\arMQ2Medley\au::\atTwisting \ag%d \atsong%s.", medley.size(), medley.size()>1 ? "s" : "");
+	//		WriteChatf(PLUGIN_MSG "\atTwisting \ag%d \atsong%s.", medley.size(), medley.size()>1 ? "s" : "");
 
 	//	if (medley.size()>0)
 	//		bTwist = true;
@@ -650,7 +652,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//}
 
 	if (strlen(szTemp)) {
-		WriteChatf("\arMQ2Medley\au::\atLoading medley \"%s\"", szTemp);
+		WriteChatf(PLUGIN_MSG "\atLoading medley \"%s\"", szTemp);
 		medley.clear();
 		medleyName = szTemp;
 		WritePrivateProfileString("MQ2Medley", "Medley", szTemp, INIFileName);
@@ -660,12 +662,12 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		return;
 	}
 	else if (!medley.empty()) {
-		WriteChatf("\arMQ2Medley\au::\atResuming medley \"%s\"", medleyName.c_str());
+		WriteChatf(PLUGIN_MSG "\atResuming medley \"%s\"", medleyName.c_str());
 		bTwist = true;
 		WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
 	}
 	else {
-		WriteChatf("\arMQ2Medley\au::\atNo medley defined");
+		WriteChatf(PLUGIN_MSG "\atNo medley defined");
 	}
 }
 
@@ -691,14 +693,14 @@ bool CheckCharState()
 			return false;
 		switch (GetCharInfo()->standstate) {
 		case STANDSTATE_SIT:
-			//WriteChatf("\arMQ2Medley\au::\ayStopping Twist.");
+			//WriteChatf(PLUGIN_MSG "\ayStopping Twist.");
 			//bTwist = false;
 			return false;
 		case STANDSTATE_FEIGN:
 			MQ2MedleyDoCommand(GetCharInfo()->pSpawn, "/stand");
 			return false;
 		case STANDSTATE_DEAD:
-			WriteChatf("\arMQ2Medley\au::\ayStopping Twist.");
+			WriteChatf(PLUGIN_MSG "\ayStopping Twist.");
 			//bTwist = false;
 			return false;
 		default:
@@ -868,7 +870,7 @@ const SongData scheduleNextSong()
 		return *stalestSong;
 	}
 	else {
-		if (!quiet) WriteChatf("\arMQ2Medley\au::\atFAILED to schedule a song, no songs ready or conditions not met");
+		if (!quiet) WriteChatf(PLUGIN_MSG "\atFAILED to schedule a song, no songs ready or conditions not met");
 		return nullSong;
 	}
 }
@@ -907,7 +909,7 @@ PLUGIN_API void OnPulse()
 	if (SongIF[0] != 0)
 	{
 		Evaluate(szTemp, "${If[%s,1,0]}", SongIF);
-		if (DebugMode) WriteChatf("\arMQ2Medley\au::\atOnPulse SongIF[%s]=>[%s]=%d", SongIF, szTemp, atoi(szTemp));
+		if (DebugMode) WriteChatf(PLUGIN_MSG "\atOnPulse SongIF[%s]=>[%s]=%d", SongIF, szTemp, atoi(szTemp));
 		if (atoi(szTemp) == 0)
 			return;
 	}
@@ -938,7 +940,7 @@ PLUGIN_API void OnPulse()
 			{
 				currentSong = scheduleNextSong();
 				if (currentSong.type == 4) return;
-				if (!quiet) WriteChatf("\arMQ2Medley\au::\atScheduled: %s", currentSong.name.c_str());
+				if (!quiet) WriteChatf(PLUGIN_MSG "\atScheduled: %s", currentSong.name.c_str());
 				if (currentSong.targetExp.length() > 0)
 					currentSong.targetID = currentSong.evalTarget();
 			}
