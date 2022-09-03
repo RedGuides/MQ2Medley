@@ -399,7 +399,6 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 	char szTemp[MAX_STRING] = { 0 };
 	char szKey[MAX_STRING] = { 0 };
 
-
 	Update_INIFileName(pCharInfo);
 
 	CAST_PAD_TIME = GetPrivateProfileInt("MQ2Medley", "Delay", 3, INIFileName);
@@ -421,6 +420,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName)
 	char szTemp[MAX_STRING] = { 0 };
 	char *pNext;
 
+	medley.clear();
 	Update_INIFileName(pCharInfo);
 
 	std::string iniSection = "MQ2Medley-" + medleyName;
@@ -525,7 +525,6 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (!_strnicmp(szTemp, "reload", 6) || !_strnicmp(szTemp, "load", 4)) {
 		WriteChatf(PLUGIN_MSG "\atReloading INI Values.");
-		medley.clear();
 		Load_MQ2Medley_INI(GetCharInfo());
 		return;
 	}
@@ -653,7 +652,6 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (strlen(szTemp)) {
 		WriteChatf(PLUGIN_MSG "\atLoading medley \"%s\"", szTemp);
-		medley.clear();
 		medleyName = szTemp;
 		WritePrivateProfileString("MQ2Medley", "Medley", szTemp, INIFileName);
 		Load_MQ2Medley_INI_Medley(GetCharInfo(), medleyName);
