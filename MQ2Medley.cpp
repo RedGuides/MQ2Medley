@@ -175,15 +175,18 @@ __int64 GetTime()
 double getTimeTillQueueEmpty()
 {
 	double time = 0.0;
-	if (currentSong.once) {
-		time += CastDue - GetTime();
-	}
+	boolean isOnceQueued = false;
 
 	for (auto song = medley.begin(); song != medley.end(); song++) {
 		if (song->once) {
+			isOnceQueued = true;
 			time += CAST_PAD_TIME_MS;
 			time += song->castTimeMs;
 		}
+	}
+
+	if (currentSong.once || isOnceQueued) {
+		time += CastDue - GetTime();
 	}
 
 	return time;
