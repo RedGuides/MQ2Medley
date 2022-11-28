@@ -237,13 +237,14 @@ void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
 	HideDoCommand(pChar, szLine, FromPlugin);
 }
 
-int GemCastTime(const std::string& spellName) // Gem 1 to NUM_SPELL_GEMS
+int GemCastTime(const std::string& spellName)
 {
 	VePointer<CONTENTS> n;
+	// Gem 1 to NUM_SPELL_GEMS
 	for (int i = 0; i < NUM_SPELL_GEMS; i++)
 	{
 		PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
-		if (pSpell && spellName.compare(pSpell->Name) == 0) {
+		if (pSpell && starts_with(pSpell->Name, spellName)) {
 			float mct = (FLOAT)(GetCastingTimeModifier((EQ_Spell*)pSpell) + GetFocusCastingTimeModifier((EQ_Spell*)pSpell, n, 0) + pSpell->CastTime);
 			if (mct < 0.50 * pSpell->CastTime)
 				return (int)(0.50 * (pSpell->CastTime));
@@ -338,7 +339,7 @@ __int64 doCast(const SongData SongTodo)
 				for (int i = 0; i < NUM_SPELL_GEMS; i++)
 				{
 					PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
-					if (pSpell && SongTodo.name.compare(pSpell->Name) == 0) {
+					if (pSpell && starts_with(pSpell->Name, SongTodo.name)) {
 						int gemNum = i + 1;
 
 						if (!SongTodo.targetID) {
@@ -441,7 +442,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName)
 			{
 				medleySong = getSongData(p);
 				if (medleySong.type == SongData::NOT_FOUND) {
-					WriteChatf("MQ2Medley::loadMedley - could not find song named \"%s\"", p);
+					WriteChatf("MQ2Medley::loadMedley - [%s] could not find song named \"%s\"", medleyName, p);
 					continue;
 				}
 				if (p = strtok_s(NULL, "^",&pNext))
@@ -460,12 +461,12 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, std::string medleyName)
 
 			if (medleySong.type != SongData::NOT_FOUND)
 			{
-				if (!quiet) WriteChatf("MQ2Medley::loadMedley - adding Song %s^%s^s", medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.conditionalExp.c_str());
+				if (!quiet) WriteChatf("MQ2Medley::loadMedley - [%s] adding Song %s^%s^s", medleyName, medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.conditionalExp.c_str());
 				medley.emplace_back(medleySong);
 			}
 		}
 	}
-	WriteChatf("MQ2Medley::loadMedley - %d song Medley loaded", (int)medley.size());
+	WriteChatf("MQ2Medley::loadMedley - [%s] %d song Medley loaded", medleyName, (int)medley.size());
 	GetPrivateProfileString(iniSection.c_str(), "SongIF", "", SongIF, MAX_STRING, INIFileName);
 }
 
@@ -1028,7 +1029,7 @@ bool SongData::isReady() {
 		for (int i = 0; i < NUM_SPELL_GEMS; i++)
 		{
 			PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[i]);
-			if (pSpell && name.compare(pSpell->Name) == 0)
+			if (pSpell && starts_with(pSpell->Name, name))
 				return GetSpellGemTimer(i) == 0;
 		}
 		return false;
