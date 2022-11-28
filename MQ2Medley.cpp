@@ -298,6 +298,10 @@ SongData getSongData(const char* name)
 	int castTime = GemCastTime(spellName);
 	if (castTime >= 0)
 	{
+		if (castTime == 0) {
+			// race condition after casting instant spell (Coalition), sometimes causing next song to be skipped
+			castTime = 100;
+		}
 		return SongData(spellName, SongData::SONG, castTime);
 	}
 
