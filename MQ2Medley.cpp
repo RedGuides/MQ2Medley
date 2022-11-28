@@ -40,7 +40,7 @@ MQ2Medley
 
 Usage:
 /medley name - Sing the given medley
-/medley queue "song/item/aa name" [-targetid|spawnid] [-interupt] - add songs to queue to cast once
+/medley queue "song/item/aa name" [-targetid|spawnid] [-interrupt] - add songs to queue to cast once
 /medley stop/end/off - stop singing
 /medley - Resume the medley after using /medley stop
 /medley delay # - 10ths of a second, minimum of 0, default 3, how long after casting a spell to wait to cast next spell
@@ -55,7 +55,7 @@ MQ2Medley uses /cast item "ItemName"
 Examples:
 /medley melee
 play medley defined in [MQ2Medley-melee] ini setion
-/medley queue "Dirge of the Sleepwalker" -interupt
+/medley queue "Dirge of the Sleepwalker" -interrupt
 Interrupt current song and cast AA "Dirge of the Sleepwaler"
 /medley queue "Slumber of Silisia" -targetid|${Me.XTarget[2].ID}
 When current song ends, will mez XTarget[2] and switch back current target.
