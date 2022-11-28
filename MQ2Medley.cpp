@@ -74,7 +74,7 @@ Medley.Medley
 Medley.TTQE (time to queue empty)
 - double time in seconds until queue is empty, this is estimate only.  If performating normal medley, this will be 0.0
 Medley.Tune
-- int 1 if buffed with "A Tune Stuck in My Head", 0 otherwise
+- int 0 Always 0 since changed to "A Tune Stuck in My Head" AA
 Medley.Active
 - boolean true if MQ2Medley is currently trying to cast spells
 ----------------------------
@@ -129,7 +129,6 @@ public:
 };
 
 const SongData nullSong = SongData("", SongData::NOT_FOUND, -1);
-//long TUNE_SPELL_ID = GetSpellByName("A Tune Stuck in Your Head")->ID;
 
 bool MQ2MedleyEnabled = false;
 long CAST_PAD_TIME_MS = 300;               // ms to give spell time to finish
@@ -762,15 +761,10 @@ public:
 				return true;
 			case Tune:
 				/* Returns: int
-				0 - not buffed with A Tune Stuck in My Head
-				1 - buffed with A Tune Stuck in My Head
+				0 - (deprecated) always 0.  Because Tune Stuck in head was changed to passive AA, should no longer be used
 				*/
 				Dest.Int = 0;
 				Dest.Type = mq::datatypes::pIntType;
-				char zOutput[MAX_STRING];
-				sprintf_s(zOutput, "${Me.Buff[Tune Stuck In Your Head].ID}");
-				ParseMacroData(zOutput,MAX_STRING);
-				Dest.Int = atof(zOutput) != 0.0;
 				return true;
 			case Active:
 				/* Returns: boolean
