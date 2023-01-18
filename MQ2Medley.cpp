@@ -112,13 +112,13 @@ public:
 	std::string name;
 	SpellType type;
 	bool once;					// is this a cast once spell?
-	__int64 castTimeMs;	        // ms
+	uint32_t castTimeMs;	    // ms
 	unsigned long targetID;		// SpawnID
 	std::string durationExp;	// duration in seconds, how long the spell lasts, evaluated with Math.Calc
 	std::string conditionalExp; // condition to cast this song under, evaluated with Math.Calc
 	std::string targetExp;		// expression for targetID
 public:
-	SongData(std::string spellName, SpellType spellType, int spellCastTimeMs);
+	SongData(std::string spellName, SpellType spellType, uint32_t spellCastTimeMs);
 
 	~SongData();
 
@@ -128,18 +128,19 @@ public:
 	DWORD evalTarget();
 };
 
-const SongData nullSong = SongData("", SongData::NOT_FOUND, -1);
+const SongData nullSong = SongData("", SongData::NOT_FOUND, 0);
 
 bool MQ2MedleyEnabled = false;
 long CAST_PAD_TIME_MS = 300;               // ms to give spell time to finish
 std::list<SongData> medley;                // medley[n] = stores medley list
 std::string medleyName;
 
-std::map<std::string, __int64 > songExpires;   // when cast, songExpires["songName"] = GetTime() + SongDurationMs
-									  // song to song state variables
+std::map<std::string, uint64_t > songExpires;   // when cast, songExpires["songName"] = epoch(ms) + SongDurationMs
+									  
+// song to song state variables
 SongData currentSong = nullSong;
 boolean bWasInterrupted = false;
-__int64 CastDue = 0;
+uint64_t CastDue = 0;
 PSPAWNINFO TargetSave = NULL;
 
 bool bTwist = false;
@@ -164,12 +165,6 @@ void resetTwistData()
 	WritePrivateProfileString("MQ2Medley", "Medley", "", INIFileName);
 }
 
-//get current timestamp (millisonds)
-__int64 GetTime()
-{
-	return (__int64)(MQGetTickCount64());
-}
-
 // returns time in seconds till queust is empty. millisecond precision
 double getTimeTillQueueEmpty()
 {
@@ -185,7 +180,7 @@ double getTimeTillQueueEmpty()
 	}
 
 	if (currentSong.once || isOnceQueued) {
-		time += CastDue - GetTime();
+		time += CastDue - MQGetTickCount64();
 	}
 
 	return time;
@@ -325,7 +320,7 @@ SongData getSongData(const char* name)
 // preconditions:
 //   SongTodo is ready to cast
 // -1 - cast failed
-__int64 doCast(const SongData SongTodo)
+int32_t doCast(const SongData SongTodo)
 {
 	DebugSpew("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
 	//WriteChatf("MQ2Medley::doCast(%s) ENTER", SongTodo.name.c_str());
@@ -608,7 +603,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			}
 
 		} while (true);
-		songData.once = 1;
+		songData.once = true;
 
 		DebugSpew("MQ2Medley::TwistCommand  - altQueue.push_back(%s);", songData.name.c_str());
 		//altQueue.push_back(songData);
@@ -822,8 +817,9 @@ PLUGIN_API void ShutdownPlugin()
 
 const SongData scheduleNextSong()
 {
-	__int64 currentTickMs = GetTime();
-	if (DebugMode) WriteChatf("MQ2Medley::scheduleNextSong - currentTickMs=%I64d", currentTickMs);
+	uint64_t currentTickMs = MQGetTickCount64();
+
+	if (DebugMode) WriteChatf("MQ2Medley::scheduleNextSong - currentTickMs=%I64u", currentTickMs);
 	SongData * stalestSong = NULL;
 	for (auto song = medley.begin(); song != medley.end(); song++)
 	{
@@ -848,7 +844,7 @@ const SongData scheduleNextSong()
 		// for a 3s casting time song, we should recast if it will expire in the next 6 seconds
 		// the constant 3 seconds is we will assume if we don't cast this song now, the next song will probably be a 3
 		// second cast time song
-		long long startCastByMs = songExpires[song->name] - song->castTimeMs - 3000;
+		uint64_t startCastByMs = songExpires[song->name] - song->castTimeMs - 3000;
 		if (DebugMode) WriteChatf("MQ2Medley::scheduleNextSong time till need to cast %s: %I64d ms", song->name.c_str(), startCastByMs - currentTickMs);
 
 		// for a 3s casting time song, we should recast if it will expire in the next 6 seconds
@@ -914,7 +910,7 @@ PLUGIN_API void OnPulse()
 
 	// get the next song
 	//DebugSpew("MQ2Medley::Pulse (twist) before cast, CurrSong=%d, PrevSong = %d, CastDue -GetTime() = %d", CurrSong, PrevSong, (CastDue-GetTime()));
-	if (((CastDue - GetTime()) <= 0)) {
+	if (((CastDue - MQGetTickCount64()) <= 0)) {
 		DebugSpew("MQ2Medley::Pulse - time for next cast");
 		if (bWasInterrupted && currentSong.type != SongData::NOT_FOUND && currentSong.isReady())
 		{
@@ -932,7 +928,7 @@ PLUGIN_API void OnPulse()
 			{
 				// successful cast
 				if (!currentSong.once)
-					songExpires[currentSong.name] = GetTime() + (__int64)(currentSong.evalDuration() * 1000);
+					songExpires[currentSong.name] = MQGetTickCount64() + (uint32_t)(currentSong.evalDuration() * 1000);
 			}
 			if (!medley.empty())
 			{
@@ -944,13 +940,13 @@ PLUGIN_API void OnPulse()
 			}
 		}
 
-		__int64 castTimeMs = doCast(currentSong);
+		int32_t castTimeMs = doCast(currentSong);
 
 		if (DebugMode) WriteChatf("MQ2Medley::OnPulse - casting time for %s - %d ms", currentSong.name.c_str(), castTimeMs);
 		if (castTimeMs != -1)  // cast failed
 		{
 			// cast started successfully - update CastDue and PrevSong is now the song we're casting.
-			CastDue = GetTime() + castTimeMs + CAST_PAD_TIME_MS;
+			CastDue = MQGetTickCount64() + castTimeMs + CAST_PAD_TIME_MS;
 		}
 		else {
 			DebugSpew("MQ2Medley::OnPulse - cast failed for %s", currentSong.name.c_str());
@@ -982,7 +978,7 @@ PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color)
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event (stun)");
 		bWasInterrupted = true;
 		// Wait one second before trying again, to avoid spamming the trigger text w/ cast attempts
-		CastDue = GetTime() + 10;
+		CastDue = MQGetTickCount64() + 10;
 	}
 	return false;
 }
@@ -1009,7 +1005,7 @@ PLUGIN_API void SetGameState(int GameState)
 /**
 * SongData Impl
 */
-SongData::SongData(std::string spellName, SpellType spellType, int spellCastTime) {
+SongData::SongData(std::string spellName, SpellType spellType, uint32_t spellCastTime) {
 	name = spellName;
 	type = spellType;
 	castTimeMs = spellCastTime;
@@ -1017,7 +1013,7 @@ SongData::SongData(std::string spellName, SpellType spellType, int spellCastTime
 	targetID = 0;
 	conditionalExp = "1";  // default always sing
 	targetExp = "";			// expression for targetID
-	once = 0;
+	once = false;
 }
 
 SongData::~SongData() {}
