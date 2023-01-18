@@ -402,11 +402,11 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 	Update_INIFileName(pCharInfo);
 
 	CAST_PAD_TIME_MS = GetPrivateProfileInt("MQ2Medley", "Delay", 3, INIFileName) * 100;
-	WritePrivateProfileString("MQ2Medley", "Delay", SafeItoa(CAST_PAD_TIME_MS/100, szTemp, 10), INIFileName);
+	WritePrivateProfileInt("MQ2Medley", "Delay", CAST_PAD_TIME_MS/100, INIFileName);
 	quiet = GetPrivateProfileInt("MQ2Medley", "Quiet", 0, INIFileName) ? 1 : 0;
-	WritePrivateProfileString("MQ2Medley", "Quiet", SafeItoa(quiet, szTemp, 10), INIFileName);
+	WritePrivateProfileInt("MQ2Medley", "Quiet", quiet, INIFileName);
 	DebugMode = GetPrivateProfileInt("MQ2Medley", "Debug", 1, INIFileName) ? 1 : 0;
-	WritePrivateProfileString("MQ2Medley", "Debug", SafeItoa(DebugMode, szTemp, 10), INIFileName);
+	WritePrivateProfileInt("MQ2Medley", "Debug", DebugMode, INIFileName);
 	GetPrivateProfileString("MQ2Medley", "Medley", "", szTemp, MAX_STRING, INIFileName);
 	if (szTemp[0] != 0)
 	{
