@@ -200,30 +200,24 @@ void Evaluate(char *zOutput, char *zFormat, ...) {
 
 // -1 if not found
 // cast time in ms if found
-int32_t GetItemCastTime(std::string ItemName)
+int GetItemCastTime(std::string ItemName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${FindItem[=%s].CastTime}", ItemName.c_str());
 	ParseMacroData(zOutput, MAX_STRING);
 	DebugSpew("MQ2Medley::GetItemCastTime ${FindItem[=%s].CastTime} returned=%s", ItemName.c_str(), zOutput);
-	if (!_stricmp(zOutput, "null"))
-		return -1;
-
-	return (int32_t)(atof(zOutput));
+	return GetIntFromString(zOutput, -1);
 }
 
 // -1 if not found
 // cast time in ms if found
-int32_t GetAACastTime(std::string AAName)
+int GetAACastTime(std::string AAName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Me.AltAbility[%s].Spell.CastTime}", AAName.c_str());
 	ParseMacroData(zOutput, MAX_STRING);
 	DebugSpew("MQ2Medley::GetAACastTime ${Me.AltAbility[%s].Spell.CastTime} returned=%s", AAName.c_str(), zOutput);
-	if (!_stricmp(zOutput, "null"))
-		return -1;
-
-	return (int32_t)(atof(zOutput));
+	return GetIntFromString(zOutput, -1);
 }
 
 void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
@@ -1024,6 +1018,7 @@ bool SongData::isReady() {
 		sprintf_s(zOutput, "${FindItem[=%s].Timer}", name.c_str());
 		ParseMacroData(zOutput,MAX_STRING);
 		DebugSpew("MQ2Medley::SongData::IsReady() ${FindItem[=%s].Timer} returned=%s", name.c_str(), zOutput);
+
 		if (!_stricmp(zOutput, "null"))
 			return false;
 		return atoi(zOutput) == 0;
