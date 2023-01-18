@@ -113,7 +113,7 @@ public:
 	SpellType type;
 	bool once;					// is this a cast once spell?
 	uint32_t castTimeMs;	    // ms
-	unsigned long targetID;		// SpawnID
+	unsigned int targetID;		// SpawnID
 	std::string durationExp;	// duration in seconds, how long the spell lasts, evaluated with Math.Calc
 	std::string conditionalExp; // condition to cast this song under, evaluated with Math.Calc
 	std::string targetExp;		// expression for targetID
@@ -131,7 +131,7 @@ public:
 const SongData nullSong = SongData("", SongData::NOT_FOUND, 0);
 
 bool MQ2MedleyEnabled = false;
-long CAST_PAD_TIME_MS = 300;               // ms to give spell time to finish
+uint32_t castPadTimeMs = 300;               // ms to give spell time to finish
 std::list<SongData> medley;                // medley[n] = stores medley list
 std::string medleyName;
 
@@ -174,7 +174,7 @@ double getTimeTillQueueEmpty()
 	for (auto song = medley.begin(); song != medley.end(); song++) {
 		if (song->once) {
 			isOnceQueued = true;
-			time += CAST_PAD_TIME_MS;
+			time += castPadTimeMs;
 			time += song->castTimeMs;
 		}
 	}
@@ -200,7 +200,7 @@ void Evaluate(char *zOutput, char *zFormat, ...) {
 
 // -1 if not found
 // cast time in ms if found
-long GetItemCastTime(std::string ItemName)
+int32_t GetItemCastTime(std::string ItemName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${FindItem[=%s].CastTime}", ItemName.c_str());
@@ -209,12 +209,12 @@ long GetItemCastTime(std::string ItemName)
 	if (!_stricmp(zOutput, "null"))
 		return -1;
 
-	return (long)(atof(zOutput));
+	return (int32_t)(atof(zOutput));
 }
 
 // -1 if not found
 // cast time in ms if found
-long GetAACastTime(std::string AAName)
+int32_t GetAACastTime(std::string AAName)
 {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Me.AltAbility[%s].Spell.CastTime}", AAName.c_str());
@@ -223,7 +223,7 @@ long GetAACastTime(std::string AAName)
 	if (!_stricmp(zOutput, "null"))
 		return -1;
 
-	return (long)(atof(zOutput));
+	return (int32_t)(atof(zOutput));
 }
 
 void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
@@ -380,15 +380,6 @@ int32_t doCast(const SongData SongTodo)
 	return -1;
 }
 
-template <unsigned int _Size>LPSTR SafeItoa(int _Value, char(&_Buffer)[_Size], int _Radix)
-{
-	errno_t err = _itoa_s(_Value, _Buffer, _Radix);
-	if (!err) {
-		return _Buffer;
-	}
-	return "";
-}
-
 void Update_INIFileName(PCHARINFO pCharInfo) {
 	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, GetServerShortName(), pCharInfo->Name);
 }
@@ -401,8 +392,8 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 
 	Update_INIFileName(pCharInfo);
 
-	CAST_PAD_TIME_MS = GetPrivateProfileInt("MQ2Medley", "Delay", 3, INIFileName) * 100;
-	WritePrivateProfileInt("MQ2Medley", "Delay", CAST_PAD_TIME_MS/100, INIFileName);
+	castPadTimeMs = GetPrivateProfileInt("MQ2Medley", "Delay", 3, INIFileName) * 100;
+	WritePrivateProfileInt("MQ2Medley", "Delay", castPadTimeMs/100, INIFileName);
 	quiet = GetPrivateProfileInt("MQ2Medley", "Quiet", 0, INIFileName) ? 1 : 0;
 	WritePrivateProfileInt("MQ2Medley", "Quiet", quiet, INIFileName);
 	DebugMode = GetPrivateProfileInt("MQ2Medley", "Debug", 1, INIFileName) ? 1 : 0;
@@ -475,7 +466,7 @@ void StopTwistCommand(PSPAWNINFO pChar, PCHAR szLine)
 	MQ2MedleyDoCommand(pChar, "/stopsong");
 	if (_strnicmp(szTemp, "silent", 6))
 		WriteChatf(PLUGIN_MSG "\atStopping Medley");
-	WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
+	WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
 }
 
 
@@ -503,14 +494,14 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			WriteChatf(PLUGIN_MSG "\atStarting Twist.");
 		bTwist = true;
 		CastDue = -1;
-		WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
 		return;
 	}
 
 	if (!_strnicmp(szTemp, "debug", 5)) {
 		DebugMode = !DebugMode;
 		WriteChatf(PLUGIN_MSG "\atDebug mode is now %s\ax.", DebugMode ? "\ayON" : "\agOFF");
-		WritePrivateProfileString("MQ2Medley", "Debug", SafeItoa(DebugMode, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("MQ2Medley", "Debug", DebugMode, INIFileName);
 		return;
 	}
 
@@ -538,19 +529,19 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 				WriteChatf(PLUGIN_MSG "\ayWARNING: \arDelay cannot be less than 0, setting to 0");
 				delay = 0;
 			}
-			CAST_PAD_TIME_MS = delay * 100;
+			castPadTimeMs = delay * 100;
 			Update_INIFileName(GetCharInfo());
-			WritePrivateProfileString("MQ2Medley", "Delay", SafeItoa(delay, szTemp, 10), INIFileName);
+			WritePrivateProfileInt("MQ2Medley", "Delay", delay, INIFileName);
 			WriteChatf(PLUGIN_MSG "\atSet delay to \ag%d\at, INI updated.", delay);
 		}
 		else
-			WriteChatf(PLUGIN_MSG "\atDelay \ag%d\at.", CAST_PAD_TIME_MS/100);
+			WriteChatf(PLUGIN_MSG "\atDelay \ag%d\at.", castPadTimeMs/100);
 		return;
 	}
 
 	if (!_strnicmp(szTemp, "quiet", 5)) {
 		quiet = !quiet;
-		WritePrivateProfileString("MQ2Medley", "Quiet", SafeItoa(quiet, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("MQ2Medley", "Quiet", quiet, INIFileName);
 		WriteChatf(PLUGIN_MSG "\atNow being %s\at.", quiet ? "\ayquiet" : "\agnoisy");
 		return;
 	}
@@ -656,13 +647,13 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		WritePrivateProfileString("MQ2Medley", "Medley", szTemp, INIFileName);
 		Load_MQ2Medley_INI_Medley(GetCharInfo(), medleyName);
 		bTwist = true;
-		WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
 		return;
 	}
 	else if (!medley.empty()) {
 		WriteChatf(PLUGIN_MSG "\atResuming medley \"%s\"", medleyName.c_str());
 		bTwist = true;
-		WritePrivateProfileString("MQ2Medley", "Playing", SafeItoa(bTwist, szTemp, 10), INIFileName);
+		WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
 	}
 	else {
 		WriteChatf(PLUGIN_MSG "\atNo medley defined");
@@ -946,7 +937,7 @@ PLUGIN_API void OnPulse()
 		if (castTimeMs != -1)  // cast failed
 		{
 			// cast started successfully - update CastDue and PrevSong is now the song we're casting.
-			CastDue = MQGetTickCount64() + castTimeMs + CAST_PAD_TIME_MS;
+			CastDue = MQGetTickCount64() + castTimeMs + castPadTimeMs;
 		}
 		else {
 			DebugSpew("MQ2Medley::OnPulse - cast failed for %s", currentSong.name.c_str());
