@@ -380,7 +380,7 @@ void Update_INIFileName(PCHARINFO pCharInfo) {
 	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, GetServerShortName(), pCharInfo->Name);
 }
 
-void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyName);
+void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNameIni);
 void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 {
 	char szTemp[MAX_STRING] = { 0 };
