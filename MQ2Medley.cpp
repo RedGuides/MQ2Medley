@@ -138,7 +138,7 @@ std::map<std::string, uint64_t > songExpires;   // when cast, songExpires["songN
 // song to song state variables
 SongData currentSong = nullSong;
 boolean bWasInterrupted = false;
-uint64_t CastDue = 0;
+int64_t CastDue = 0;
 PSPAWNINFO TargetSave = nullptr;
 
 bool bTwist = false;
