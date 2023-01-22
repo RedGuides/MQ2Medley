@@ -138,7 +138,7 @@ std::map<std::string, uint64_t > songExpires;   // when cast, songExpires["songN
 // song to song state variables
 SongData currentSong = nullSong;
 boolean bWasInterrupted = false;
-int64_t CastDue = 0;
+uint64_t CastDue = 0;
 PSPAWNINFO TargetSave = nullptr;
 
 bool bTwist = false;
@@ -487,7 +487,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		if (_strnicmp(szTemp1, "silent", 6))
 			WriteChatf(PLUGIN_MSG "\atStarting Twist.");
 		bTwist = true;
-		CastDue = -1;
+		CastDue = 0;
 		WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
 		return;
 	}
@@ -583,7 +583,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			}
 			else if (!_strnicmp(szTemp, "-interrupt", 10)) {
 				currentSong = nullSong;
-				CastDue = -1;
+				CastDue = 0;
 				MQ2MedleyDoCommand(pChar, "/stopsong");
 			}
 
@@ -629,7 +629,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//	if (isInterrupt)
 	//	{
 	//		currentSong = nullSong;
-	//		CastDue = -1;
+	//		CastDue = 0;
 	//		MQ2MedleyDoCommand(pChar, "/stopsong");
 	//	}
 
@@ -894,7 +894,7 @@ PLUGIN_API void OnPulse()
 
 	// get the next song
 	//DebugSpew("MQ2Medley::Pulse (twist) before cast, CurrSong=%d, PrevSong = %d, CastDue -GetTime() = %d", CurrSong, PrevSong, (CastDue-GetTime()));
-	if (((CastDue - MQGetTickCount64()) <= 0)) {
+	if (MQGetTickCount64() > CastDue) {
 		DebugSpew("MQ2Medley::Pulse - time for next cast");
 		if (bWasInterrupted && currentSong.type != SongData::NOT_FOUND && currentSong.isReady())
 		{
@@ -956,7 +956,7 @@ PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color)
 		(strstr(Line, "Your ") && strstr(Line, " spell is interrupted."))) {
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event: %s", Line);
 		bWasInterrupted = true;
-		CastDue = -1;
+		CastDue = 0;
 	} else if (!strcmp(Line, "You can't cast spells while stunned!")) {
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event (stun)");
 		bWasInterrupted = true;
