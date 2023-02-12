@@ -228,7 +228,7 @@ void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 int GemCastTime(const std::string& spellName)
 {
-	VePointer<CONTENTS> n;
+	ItemPtr n;
 	// Gem 1 to NUM_SPELL_GEMS
 	for (int i = 0; i < NUM_SPELL_GEMS; i++)
 	{
