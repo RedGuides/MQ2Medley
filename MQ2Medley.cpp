@@ -91,6 +91,7 @@ song20=
 */
 
 #include <mq/Plugin.h>
+#include <main/MQ2SpellSearch.h>
 
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.07);
@@ -691,6 +692,12 @@ bool CheckCharState()
 		}
 		if (InHoverState()) {
 			//bTwist = false;
+			return false;
+		}
+		if (GetSelfBuff(SpellAffect(SPA_SILENCE)) >= 0) {
+			return false;
+		}
+		if (GetSelfBuff(SpellAffect(SPA_INVULNERABILITY)) >= 0) {
 			return false;
 		}
 	}
