@@ -91,7 +91,6 @@ song20=
 */
 
 #include <mq/Plugin.h>
-#include <main/MQ2SpellSearch.h>
 
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.07);
@@ -139,7 +138,7 @@ std::list<SongData> medley;                // medley[n] = stores medley list
 std::string medleyName;
 
 std::map<std::string, uint64_t > songExpires;   // when cast, songExpires["songName"] = epoch(ms) + SongDurationMs
-std::map<unsigned int, std::map<std::string, uint64_t > > songExpiresMob; // for per mob tracking
+std::map<unsigned int, std::map<std::string, uint64_t >> songExpiresMob; // for per mob tracking
 
 // song to song state variables
 SongData currentSong = nullSong;
@@ -736,12 +735,13 @@ bool CheckCharState()
 			//bTwist = false;
 			return false;
 		}
-		if (GetSelfBuff(SpellAffect(SPA_SILENCE)) >= 0) {
+		if (GetSelfBuff([](EQ_Spell* pSpell) { return HasSPA(pSpell, SPA_SILENCE); }) >= 0) {
 			return false;
 		}
-		if (GetSelfBuff(SpellAffect(SPA_INVULNERABILITY)) >= 0) {
+		if (GetSelfBuff([](EQ_Spell* pSpell) { return HasSPA(pSpell, SPA_INVULNERABILITY); }) >= 0) {
 			return false;
 		}
+
 	}
 
 	return true;
