@@ -1,28 +1,32 @@
 // MQ2Medley.cpp - Bard song scheduling plugin for MacroQuest2
 //
 // Changelog
-//   2015-07-08 Winnower - Initial release
-//   2016-06-22 Dewey    - Updated for current core MQ source: bump to v 1.01
-//                         - fixed using instant cast AA's
-//                         - fixed TLO ${Medley.Tune} so it does not CTD
-//                         - fixed TLO ${Medley.Medley} so it returns correct set.
-//                         - /medley quiet is now a lot more quiet.
-//   2016-06-22 Dewey    - Updated for current core MQ source: bump to v 1.02
-//                       - fixed recast calculations due to core changes to TLO ${Spell[].CastTime}
-//                       - /medley debug now toggles some extra debug spam.
-//   2016-07-10 Dewey    - Added SongIF which works like MQ2Melee SkillIF[] : bump to v 1.03
-//                         - /medley debug now saves its state and shows which song it is evaluating.
-//   2016-07-11 Dewey    - Medley is now much more persistent, like priority version of MQ2Melee. Bump to v1.04
-//                         - Any time  Medley set or Twist changes state it should write Medley=[SET] and Playing=[0|1] to the ini.
-//                         - Sitting, Hover, Death and FD no longer turn off twist, instead they pause playback.
-//   2016-07-17 Dewey    - Modified Once/Queue'd spells now check to see if they are ready to cast. Bump to v1.05
-//                         - Modified profile loading.Should no longer spam NULL songs when loading empty profiles.
-//   2016-07-18 Dewey    - Modified once so it shares the same spell list.  v1.06
-//                         - ${Medley.getTimeTillQueueEmpty} broken.
-//                         - Experimental support for dynamic target from profile supporting mezing XTarget[n]
-//   2016-07-26 Dewey    - Updated for the eqMules MANDITORY STRING SAFETY DANCE.  v1.07
+//   2015-07-08 Winnower	 - Initial release
+//   2016-06-22 Dewey		 - Updated for current core MQ source: bump to v 1.01
+//							   - fixed using instant cast AA's
+//							   - fixed TLO ${Medley.Tune} so it does not CTD
+//							   - fixed TLO ${Medley.Medley} so it returns correct set.
+//							   - /medley quiet is now a lot more quiet.
+//   2016-06-22 Dewey		 - Updated for current core MQ source: bump to v 1.02
+//							 - fixed recast calculations due to core changes to TLO ${Spell[].CastTime}
+//							 - /medley debug now toggles some extra debug spam.
+//   2016-07-10 Dewey		 - Added SongIF which works like MQ2Melee SkillIF[] : bump to v 1.03
+//							   - /medley debug now saves its state and shows which song it is evaluating.
+//   2016-07-11 Dewey		 - Medley is now much more persistent, like priority version of MQ2Melee. Bump to v1.04
+//							   - Any time  Medley set or Twist changes state it should write Medley=[SET] and Playing=[0|1] to the ini.
+//							   - Sitting, Hover, Death and FD no longer turn off twist, instead they pause playback.
+//   2016-07-17 Dewey		 - Modified Once/Queue'd spells now check to see if they are ready to cast. Bump to v1.05
+//							   - Modified profile loading.Should no longer spam NULL songs when loading empty profiles.
+//   2016-07-18 Dewey		 - Modified once so it shares the same spell list.  v1.06
+//							   - ${Medley.getTimeTillQueueEmpty} broken.
+//							   - Experimental support for dynamic target from profile supporting mezing XTarget[n]
+//   2016-07-26 Dewey		 - Updated for the eqMules MANDITORY STRING SAFETY DANCE.  v1.07
 //
-//
+//	 2023-12-31 Grimmier	 - Added in bandolier swapping, 
+//								-song1=song\aa\itename^duration^condition^bandoliername
+//								-defaults to 1 for no swap. otherwise plug in the name from bandolier hotkey. ie drum, lute, etc however you named them in game.
+//	 2024-01-01 Grimmier	 - Moved the Bandolier setting to the end of the arguments
+// 
 //-----------------
 // MQ2Twist contributers:
 //    koad 03-24-04 Original plugin (http://macroquest.sourceforge.net/phpBB2/viewtopic.php?t=5962&start=2)
@@ -84,7 +88,7 @@ The ini file has the format:
 Delay=3       Delay between twists in 1/10th of second. Lag & System dependant.
 [MQ2Medley-medleyname]   can multiple one of these sections, for each medley you define
 songIF=Condition to turn entire block on/off
-song1=Name of Song/Item/AA^expression representing duration of song^condition expression for this song to be song
+song1=Name of Song/Item/AA^expression representing duration of song^condition expression for this song to be song^expression representing bandlier name
 ...
 song20=
 
@@ -115,10 +119,11 @@ public:
 	SpellType type;
 	bool once;                  // is this a cast once spell?
 	bool isDot;                 // is dot, if so track time by spawn ID
-	
+
 	unsigned int targetID;      // SpawnID
 	std::string durationExp;    // duration in seconds, how long the spell lasts, evaluated with Math.Calc
 	std::string conditionalExp; // condition to cast this song under, evaluated with Math.Calc
+	std::string bandolier; 		// bandloier name for weapon swap.
 	std::string targetExp;      // expression for targetID
 public:
 	SongData(std::string spellName, SpellType spellType, uint32_t spellCastTimeMs);
@@ -191,13 +196,13 @@ double getTimeTillQueueEmpty()
 }
 
 // FIXME:  This is likely not needed
-void Evaluate(char *zOutput, char *zFormat, ...) {
+void Evaluate(char* zOutput, char* zFormat, ...) {
 	//char zOutput[MAX_STRING]={0};
 	va_list vaList;
 	va_start(vaList, zFormat);
 	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
 	//DebugSpewAlways("E[%s]",zOutput);
-	ParseMacroData(zOutput,MAX_STRING);
+	ParseMacroData(zOutput, MAX_STRING);
 	//DebugSpewAlways("R[%s]",zOutput);
 	//WriteChatf("::: zOutput = [ %s ]",zOutput);
 }
@@ -279,7 +284,7 @@ SongData getSongData(const char* name)
 
 	// if spell name is a # convert to name for that gem
 	const int spellNum = GetIntFromString(name, 0);
-	if (spellNum>0 && spellNum <= NUM_SPELL_GEMS) {
+	if (spellNum > 0 && spellNum <= NUM_SPELL_GEMS) {
 		DebugSpew("MQ2Medley::TwistCommand Parsing gem %d", spellNum);
 		PSPELL pSpell = GetSpellByID(GetPcProfile()->MemorizedSpells[spellNum - 1]);
 		if (pSpell) {
@@ -321,7 +326,8 @@ const uint64_t getSongExpires(const SongData& song) {
 		if (pTarget->SpawnID) {
 			if (songExpiresMob[pTarget->SpawnID].count(song.name)) {
 				return songExpiresMob[pTarget->SpawnID][song.name];
-			} else {
+			}
+			else {
 				return MQGetTickCount64();
 			}
 		}
@@ -386,8 +392,15 @@ int32_t doCast(const SongData& SongTodo)
 							WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
 							return -1;
 						}
-
-						sprintf_s(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+						// WriteChatf("MQ2Medley::doCast - Set bandolier to %s", SongTodo.bandolier.c_str());
+						if (SongTodo.bandolier.c_str() == "1") {
+							sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+						}
+						else {
+							sprintf(szTemp, "/multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+							DebugSpew("MQ2Medley::doCast - /multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+						}
+						// WriteChatf("MQ2Medley::doCast -  %s", szTemp);
 						MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 						// FIXME: Narrowing conversion
 						return SongTodo.getCastTimeMs();
@@ -431,7 +444,7 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 
 	castPadTimeMs = GetPrivateProfileInt("MQ2Medley", "Delay", 3, INIFileName) * 100;
 	// FIXME: Narrowing conversion
-	WritePrivateProfileInt("MQ2Medley", "Delay", castPadTimeMs/100, INIFileName);
+	WritePrivateProfileInt("MQ2Medley", "Delay", castPadTimeMs / 100, INIFileName);
 	quiet = GetPrivateProfileInt("MQ2Medley", "Quiet", 0, INIFileName) ? 1 : 0;
 	WritePrivateProfileInt("MQ2Medley", "Quiet", quiet, INIFileName);
 	DebugMode = GetPrivateProfileInt("MQ2Medley", "Debug", 0, INIFileName) ? 1 : 0;
@@ -447,7 +460,7 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNameIni)
 {
 	char szTemp[MAX_STRING] = { 0 };
-	char *pNext;
+	char* pNext;
 
 	medley.clear();
 	Update_INIFileName(pCharInfo);
@@ -461,7 +474,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 			SongData medleySong = nullSong;
 
 			//ugly ass split logic, example: song1=War March of Jocelyn^180.0^${Melee.Combat}
-			char *p = strtok_s(szTemp, "^", &pNext);
+			char* p = strtok_s(szTemp, "^", &pNext);
 			if (p)
 			{
 				medleySong = getSongData(p);
@@ -469,7 +482,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 					WriteChatf("MQ2Medley::loadMedley - [%s] could not find song named \"%s\"", medleyNameIni.c_str(), p);
 					continue;
 				}
-				if (p = strtok_s(nullptr, "^",&pNext))
+				if (p = strtok_s(nullptr, "^", &pNext))
 				{
 					medleySong.durationExp = p;
 					if (p = strtok_s(nullptr, "^", &pNext))
@@ -477,7 +490,11 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 						medleySong.conditionalExp = p;
 						if (p = strtok_s(nullptr, "^", &pNext))
 						{
-							medleySong.targetExp = p;
+							medleySong.bandolier = p;
+							if (p = strtok_s(nullptr, "^", &pNext))
+							{
+								medleySong.targetExp = p;
+							}
 						}
 					}
 				}
@@ -485,7 +502,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 
 			if (medleySong.type != SongData::NOT_FOUND)
 			{
-				if (!quiet) WriteChatf("MQ2Medley::loadMedley - [%s] adding Song %s^%s^%s", medleyNameIni.c_str(), medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.conditionalExp.c_str());
+				if (!quiet) WriteChatf("MQ2Medley::loadMedley - [%s] adding Song %s^%s^%s", medleyNameIni.c_str(), medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.conditionalExp.c_str(), medleySong.bandolier.c_str());
 				medley.emplace_back(medleySong);
 			}
 		}
@@ -571,7 +588,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			WriteChatf(PLUGIN_MSG "\atSet delay to \ag%d\at, INI updated.", delay);
 		}
 		else
-			WriteChatf(PLUGIN_MSG "\atDelay \ag%d\at.", castPadTimeMs/100);
+			WriteChatf(PLUGIN_MSG "\atDelay \ag%d\at.", castPadTimeMs / 100);
 		return;
 	}
 
@@ -747,7 +764,7 @@ bool CheckCharState()
 	return true;
 }
 
-class MQ2MedleyType *pMedleyType = 0;
+class MQ2MedleyType* pMedleyType = 0;
 
 class MQ2MedleyType : public MQ2Type
 {
@@ -773,40 +790,40 @@ public:
 		if (!pMember)
 			return false;
 		switch (pMember->ID) {
-			case Medley:
-				/* Returns: string
-				current medley name
-				empty string if no current medly
-				*/
-				sprintf_s(szTemp, "%s", medleyName.c_str());
-				//medleyName.copy(szTemp, MAX_STRING);
-				Dest.Ptr = szTemp;
-				Dest.Type = mq::datatypes::pStringType;
-				return true;
-			case TTQE:
-				/* Returns: double
-				0 - if nothing is queued and performing normal medley
-				#.# - double estimate time till queue is completed
-				*/
-				Dest.Double = getTimeTillQueueEmpty();
-				Dest.Type = mq::datatypes::pDoubleType;
-				return true;
-			case Tune:
-				/* Returns: int
-				0 - (deprecated) always 0.  Because Tune Stuck in head was changed to passive AA, should no longer be used
-				*/
-				Dest.Int = 0;
-				Dest.Type = mq::datatypes::pIntType;
-				return true;
-			case Active:
-				/* Returns: boolean
-				true - medley is active
-				*/
-				Dest.Int = bTwist;
-				Dest.Type = mq::datatypes::pBoolType;
-				return true;
-			default:
-				break;
+		case Medley:
+			/* Returns: string
+			current medley name
+			empty string if no current medly
+			*/
+			sprintf_s(szTemp, "%s", medleyName.c_str());
+			//medleyName.copy(szTemp, MAX_STRING);
+			Dest.Ptr = szTemp;
+			Dest.Type = mq::datatypes::pStringType;
+			return true;
+		case TTQE:
+			/* Returns: double
+			0 - if nothing is queued and performing normal medley
+			#.# - double estimate time till queue is completed
+			*/
+			Dest.Double = getTimeTillQueueEmpty();
+			Dest.Type = mq::datatypes::pDoubleType;
+			return true;
+		case Tune:
+			/* Returns: int
+			0 - (deprecated) always 0.  Because Tune Stuck in head was changed to passive AA, should no longer be used
+			*/
+			Dest.Int = 0;
+			Dest.Type = mq::datatypes::pIntType;
+			return true;
+		case Active:
+			/* Returns: boolean
+			true - medley is active
+			*/
+			Dest.Int = bTwist;
+			Dest.Type = mq::datatypes::pBoolType;
+			return true;
+		default:
+			break;
 		}
 		return false;
 	}
@@ -1007,7 +1024,8 @@ PLUGIN_API bool OnIncomingChat(const char* Line, DWORD Color)
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event: %s", Line);
 		bWasInterrupted = true;
 		CastDue = 0;
-	} else if (!strcmp(Line, "You can't cast spells while stunned!")) {
+	}
+	else if (!strcmp(Line, "You can't cast spells while stunned!")) {
 		DebugSpew("MQ2Medley::OnIncomingChat - Song Interrupt Event (stun)");
 		bWasInterrupted = true;
 		// Wait one second before trying again, to avoid spamming the trigger text w/ cast attempts
@@ -1056,6 +1074,7 @@ SongData::SongData(std::string spellName, SpellType spellType, uint32_t spellCas
 	castTimeMs = spellCastTime;
 	durationExp = "180";    // 3 min default
 	targetID = 0;
+	bandolier = "1";		// default no swap for bandolier
 	conditionalExp = "1";   // default always sing
 	targetExp = "";         // expression for targetID
 	once = false;
@@ -1080,7 +1099,7 @@ bool SongData::isReady() {
 		return false;
 	case SongData::ITEM:
 		sprintf_s(zOutput, "${FindItem[=%s].Timer}", name.c_str());
-		ParseMacroData(zOutput,MAX_STRING);
+		ParseMacroData(zOutput, MAX_STRING);
 		DebugSpew("MQ2Medley::SongData::IsReady() ${FindItem[=%s].Timer} returned=%s", name.c_str(), zOutput);
 
 		if (!_stricmp(zOutput, "null"))
@@ -1088,7 +1107,7 @@ bool SongData::isReady() {
 		return GetIntFromString(zOutput, 0) == 0;
 	case SongData::AA:
 		sprintf_s(zOutput, "${Me.AltAbilityReady[%s]}", name.c_str());
-		ParseMacroData(zOutput,MAX_STRING);
+		ParseMacroData(zOutput, MAX_STRING);
 		DebugSpew("MQ2Medley::SongData::IsReady() ${Me.AltAbilityReady[%s]} returned=%s", name.c_str(), zOutput);
 		return _stricmp(zOutput, "TRUE") == 0;
 	default:
@@ -1114,7 +1133,7 @@ uint32_t SongData::getCastTimeMs() const {
 double SongData::evalDuration() {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Math.Calc[%s]}", durationExp.c_str());
-	ParseMacroData(zOutput,MAX_STRING);
+	ParseMacroData(zOutput, MAX_STRING);
 	if (DebugMode) WriteChatf("MQ2Medley::SongData::evalDuration() [%s] returned=%s", conditionalExp.c_str(), zOutput);
 
 	return GetDoubleFromString(zOutput, 0.0);
@@ -1123,7 +1142,7 @@ double SongData::evalDuration() {
 bool SongData::evalCondition() {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Math.Calc[%s]}", conditionalExp.c_str());
-	ParseMacroData(zOutput,MAX_STRING);
+	ParseMacroData(zOutput, MAX_STRING);
 	//	if (DebugMode) WriteChatf("MQ2Medley::SongData::evalCondition() [%s] returned=%s", conditionalExp.c_str(), zOutput);
 	if (DebugMode) WriteChatf("MQ2Medley::SongData::evalCondition(%s) [%s] returned=%s", name.c_str(), conditionalExp.c_str(), zOutput);
 
@@ -1135,7 +1154,7 @@ bool SongData::evalCondition() {
 DWORD SongData::evalTarget() {
 	char zOutput[MAX_STRING] = { 0 };
 	sprintf_s(zOutput, "${Math.Calc[%s]}", targetExp.c_str());
-	ParseMacroData(zOutput,MAX_STRING);
+	ParseMacroData(zOutput, MAX_STRING);
 	if (DebugMode) WriteChatf("MQ2Medley::SongData::evalTarget(%s) [%s] returned=%s", name.c_str(), targetExp.c_str(), zOutput);
 
 	const DWORD result = GetIntFromString(zOutput, 0);
