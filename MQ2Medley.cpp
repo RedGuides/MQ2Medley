@@ -24,8 +24,14 @@
 //
 //	 2023-12-31 Grimmier	 - Added in bandolier swapping, 
 //								-song1=song\aa\itename^duration^condition^bandoliername
-//								-defaults to 1 for no swap. otherwise plug in the name from bandolier hotkey. ie drum, lute, etc however you named them in game.
+//								-defaults to 1 for no swap. 
+//								-otherwise plug in the name from bandolier hotkey. ie drum, lute, etc however you named them in game.
 //	 2024-01-01 Grimmier	 - Moved the Bandolier setting to the end of the arguments
+// 
+//	 2024-01-15 Grimmier	 - Moved the Bandolier settings out of the song string in the INI. 
+//								-Now in the ini for each son is a matching bandolier#= setting 
+//								-so song1 matches bandolier1 this way we don't break anyones ini's 
+//								-Defaults to a value of 1 which is no swapping.
 // 
 //-----------------
 // MQ2Twist contributers:
@@ -88,7 +94,8 @@ The ini file has the format:
 Delay=3       Delay between twists in 1/10th of second. Lag & System dependant.
 [MQ2Medley-medleyname]   can multiple one of these sections, for each medley you define
 songIF=Condition to turn entire block on/off
-song1=Name of Song/Item/AA^expression representing duration of song^condition expression for this song to be song^expression representing bandlier name
+song1=Name of Song/Item/AA^expression representing duration of song^condition expression for this song to be song
+bandolier1=bandolier name from in game
 ...
 song20=
 
@@ -417,7 +424,7 @@ int32_t doCast(const SongData& SongTodo)
 				return SongTodo.getCastTimeMs();
 			case SongData::AA:
 				DebugSpew("MQ2Medley::doCast - Next Song (Casting AA  \"%s\")", SongTodo.name.c_str());
-				sprintf_s(szTemp, "/multiline ; /stopsong ; /alt act ${Me.AltAbility[%s].ID}", SongTodo.name.c_str());
+				sprintf_s(szTemp, "/multiline ; /medley queue ; ${Me.AltAbility[%s].ID}", SongTodo.name.c_str());
 				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 				// FIXME: Narrowing conversion
 				return SongTodo.getCastTimeMs();
@@ -468,8 +475,8 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	std::string iniSection = "MQ2Medley-" + medleyNameIni;
 	for (int i = 0; i < MAX_MEDLEY_SIZE; i++)
 	{
-		std::string iniKey = "song" + std::to_string(i + 1);
-		if (GetPrivateProfileString(iniSection.c_str(), iniKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
+		std::string songKey = "song" + std::to_string(i + 1);
+		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
 		{
 			SongData medleySong = nullSong;
 
@@ -490,14 +497,20 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 						medleySong.conditionalExp = p;
 						if (p = strtok_s(nullptr, "^", &pNext))
 						{
-							medleySong.bandolier = p;
-							if (p = strtok_s(nullptr, "^", &pNext))
-							{
-								medleySong.targetExp = p;
-							}
+							medleySong.targetExp = p;
 						}
 					}
 				}
+			}
+
+			std::string bandolierKey = "bandolier" + std::to_string(i + 1);
+			if (GetPrivateProfileString(iniSection.c_str(), bandolierKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
+			{
+				medleySong.bandolier = szTemp;
+			}
+			else
+			{
+				medleySong.bandolier = "1"; // or any default value you see fit
 			}
 
 			if (medleySong.type != SongData::NOT_FOUND)
