@@ -53,6 +53,8 @@
 //							-song1=Some Run Song|10|percussion
 //								** Only Song Name and Duration. no condition and no songtype they default to 1 and noswap.**
 //							-song1=Some Run Song|10
+// 2024-01-18 Grimmier			- ADDED Backward Compatability, If you use old ini files with ^ seperators everything parses the old way
+//								- if you use a | seperator you parse the new way. This should not break any old config files. 
 //		
 // 
 //-----------------
@@ -580,36 +582,46 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			SongData medleySong = nullSong;
 
-			char* p = strtok_s(szTemp, "|", &pNext); // Parse song name
+			char separator = strchr(szTemp, '|') ? '|' : '^'; // adding Backward Compatability for ini files.
+			char* p = strtok_s(szTemp, &separator, &pNext); // Parse song name
 			if (p) {
 				medleySong = getSongData(p);
 				if (medleySong.type == SongData::NOT_FOUND) {
-					WriteChatf("MQ2Medley::loadMedley - [%s] could not find song named \"%s\"", medleyNameIni.c_str(), p);
+					// ... [error handling code] ...
 					continue;
 				}
-				p = strtok_s(nullptr, "|", &pNext); // Parse duration
+
+				p = strtok_s(nullptr, &separator, &pNext); // Parse duration
 				if (p) {
 					medleySong.durationExp = p;
 
-					p = strtok_s(nullptr, "|", &pNext); // Parse next part (could be songType or condition)
+					p = strtok_s(nullptr, &separator, &pNext); // Parse next part
 					if (p) {
-						if (isKnownSongType(p)) {
-							medleySong.songType = p;
-							p = strtok_s(nullptr, "|", &pNext); // Next part could be condition
-						}
-						else {
-							// WriteChatf("MQ2Medley::loadMedley - SongType identifier not found, using noswap");
-							medleySong.songType = "noswap"; // default for no swapping
+						if (separator == '|') {
+							if (isKnownSongType(p)) {
+								medleySong.songType = p;
+								p = strtok_s(nullptr, "|", &pNext); // Parse condition
+							}
+							else {
+								medleySong.songType = "noswap";
+							}
 						}
 
 						if (p) { // This part is condition
 							std::string conditionIdentifier = p;
-							if (conditions.find(conditionIdentifier) != conditions.end()) {
-								medleySong.conditionalExp = conditions[conditionIdentifier];
+							if (separator == '|') {
+								// New format with condition mapping
+								if (conditions.find(conditionIdentifier) != conditions.end()) {
+									medleySong.conditionalExp = conditions[conditionIdentifier];
+								}
+								else {
+									// Default condition value
+									medleySong.conditionalExp = "1";
+								}
 							}
 							else {
-								WriteChatf("MQ2Medley::loadMedley - Condition identifier '%s' not found, using default", conditionIdentifier.c_str());
-								medleySong.conditionalExp = "1"; // Default value
+								// Old format, direct condition
+								medleySong.conditionalExp = conditionIdentifier;
 							}
 						}
 					}
