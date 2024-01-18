@@ -32,6 +32,18 @@
 //								-Now in the ini for each son is a matching bandolier#= setting 
 //								-so song1 matches bandolier1 this way we don't break anyones ini's 
 //								-Defaults to a value of 1 which is no swapping.
+//	 2024-01-16 Grimmier	 
+//								- Fixed the seperator to be a | instead of the ^
+//								- Moved Conditions to their on settings, similar to other ini files CondSize= max number of conditions
+//								- cond1= condition 1 etc. 
+//								- Song1=SongName|Duration|SongType|Condition
+//								- example: song1=Selo's Accelerating Chorus|30|percussion|cond1
+//								- Added in the choice of either bandolier support or MQ2Exchange support for weapon swapping
+//								- To use Bandolier instead of MQ2Exchange set Bandolier=1 in the settings 
+//								- Added MainHand and OffHand settings to config to set your default weapon set
+//								- Added SongType to the data string valid entries are {sing, percussion, wind, brass, string}
+//								- added settings under the Medley for each SongType formated type=itemname|itemslot 
+//								- Ex: sing=Singing Short Sword|mainhand
 // 
 //-----------------
 // MQ2Twist contributers:
@@ -56,6 +68,7 @@ Usage:
 /medley delay # - 10ths of a second, minimum of 0, default 3, how long after casting a spell to wait to cast next spell
 /medley reload - reload the INI file
 /medley quiet - Toggles songs listing for medley and queued songs
+/medley bandolier - Toggles between using MQ2Exchange or In-Game Bandolier
 
 ----------------------------
 Item Click Method:
@@ -74,6 +87,8 @@ Target will be switched for one pulse, which is typicaly less than 20ms
 Add epic click to queue
 /medley queue "Lesson of the Devoted"
 Lesson of the Devoted AA will be added to the twist queue and sung when current song finished
+/medley bandolier
+Toggles between Bandolier swapping and MQ2Exchange swapping.
 
 ----------------------------
 MQ2Data TLO Variables:
@@ -104,9 +119,9 @@ song20=
 #include <mq/Plugin.h>
 
 PreSetup("MQ2Medley");
-PLUGIN_VERSION(1.07);
+PLUGIN_VERSION(0.6);
 
-#define PLUGIN_MSG "\arMQMedley\au:: "
+#define PLUGIN_MSG "\arMQMedloy\au:: "
 
 constexpr int MAX_MEDLEY_SIZE = 30;
 
@@ -132,6 +147,7 @@ public:
 	std::string conditionalExp; // condition to cast this song under, evaluated with Math.Calc
 	std::string bandolier; 		// bandloier name for weapon swap.
 	std::string targetExp;      // expression for targetID
+	std::string songType;			// Song Type ie. sing,precussion,wind,brass,string
 public:
 	SongData(std::string spellName, SpellType spellType, uint32_t spellCastTimeMs);
 
@@ -142,13 +158,21 @@ public:
 	DWORD evalTarget();
 };
 
+//weapon swapping 
+std::map<std::string, std::vector<std::pair<std::string, std::string>>> equipmentSettings;
+///std::map<std::string, std::pair<std::string, std::string>> equipmentSettings; // for weapon swapping
+std::string MainHand = ""; // main hand weapon
+std::string OffHand = ""; // Offhand Weapon
+bool UseBandolier = false;
+
+// Song Data
 const SongData nullSong = SongData("", SongData::NOT_FOUND, 0);
 
 bool MQ2MedleyEnabled = false;
 uint32_t castPadTimeMs = 300;               // ms to give spell time to finish
 std::list<SongData> medley;                // medley[n] = stores medley list
 std::string medleyName;
-
+std::string lastSongType;	// SongType of last Song Played used to check for swapping
 std::map<std::string, uint64_t > songExpires;   // when cast, songExpires["songName"] = epoch(ms) + SongDurationMs
 std::map<unsigned int, std::map<std::string, uint64_t >> songExpiresMob; // for per mob tracking
 
@@ -399,15 +423,63 @@ int32_t doCast(const SongData& SongTodo)
 							WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
 							return -1;
 						}
-						// WriteChatf("MQ2Medley::doCast - Set bandolier to %s", SongTodo.bandolier.c_str());
-						if (SongTodo.bandolier.c_str() == "1") {
-							sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+						//
+						//
+						//
+
+						if (UseBandolier == 0) { // Use /exchange instead of bandolier
+							if (SongTodo.songType != lastSongType) {
+								// Construct the /exchange command based on equipment settings
+								std::string command = "/multiline ; /stopsong ; ";
+								for (const auto& [item, slot] : equipmentSettings[SongTodo.songType]) {
+									command += "/exchange \"" + item + "\" " + slot + " ; ";
+								}
+								command += "/cast " + std::to_string(gemNum);
+								strcpy_s(szTemp, MAX_STRING, command.c_str());
+								lastSongType = SongTodo.songType;
+							}
+							else {
+								// Skip swap, just cast the song
+								sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+								lastSongType = SongTodo.songType;
+							}
 						}
-						else {
-							sprintf(szTemp, "/multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
-							DebugSpew("MQ2Medley::doCast - /multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+						else { // Use bandolier instead
+
+							//
+							//
+							//
+							//if (UseBandolier == 0) { //use /exchange instead of bandolier
+							//	// New logic for handling equipment exchange
+							//	if (SongTodo.songType != lastSongType) {
+							//		//WriteChatf("MQ2Medley::doCast = Last Song: %s New Song: %s NO MATCH", lastSongType.c_str(), SongTodo.songType.c_str());
+							//		// Perform the swap only if the song type is different
+							//		std::string currentItem = equipmentSettings[SongTodo.songType].first;
+							//		std::string currentSlot = equipmentSettings[SongTodo.songType].second;
+							//		sprintf(szTemp, "/multiline ; /stopsong ; /exchange \"%s\" %s ; /cast %d", currentItem.c_str(), currentSlot.c_str(), gemNum);
+							//		lastSongType = SongTodo.songType;
+							//	}
+							//	else {
+							//		//WriteChatf("MQ2Medley::doCast = Last Song: %s New Song: %s MATCHES", lastSongType.c_str(), SongTodo.songType.c_str());
+							//		// Skip swap, just cast the song
+							//		sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+							//		lastSongType = SongTodo.songType;
+							//	}
+							//}
+							//else { //use bandolier instead
+
+								// WriteChatf("MQ2Medley::doCast - Set bandolier to %s", SongTodo.bandolier.c_str());
+							if (SongTodo.bandolier.c_str() == "1") {
+
+								sprintf(szTemp, "/multiline ; /stopsong ; /exchange \"%s\" mainhand; /exchange \"%s\" offhand; /cast %d", MainHand.c_str(), OffHand.c_str(), gemNum);
+							}
+							else {
+								sprintf(szTemp, "/multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+								DebugSpew("MQ2Medley::doCast - /multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+							}
 						}
-						// WriteChatf("MQ2Medley::doCast -  %s", szTemp);
+
+						//WriteChatf("MQ2Medley::doCast -  %s", szTemp);
 						MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 						// FIXME: Narrowing conversion
 						return SongTodo.getCastTimeMs();
@@ -456,6 +528,10 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 	WritePrivateProfileInt("MQ2Medley", "Quiet", quiet, INIFileName);
 	DebugMode = GetPrivateProfileInt("MQ2Medley", "Debug", 0, INIFileName) ? 1 : 0;
 	WritePrivateProfileInt("MQ2Medley", "Debug", DebugMode, INIFileName);
+	UseBandolier = GetPrivateProfileInt("MQ2Medley", "Bandolier", 0, INIFileName) ? 1 : 0;
+	WritePrivateProfileInt("MQ2Medley", "Bandolier", UseBandolier, INIFileName);
+	GetPrivateProfileString("MQ2Medley", "MainHand", "", szTemp, MAX_STRING, INIFileName);
+	GetPrivateProfileString("MQ2Medley", "OffHand", "", szTemp, MAX_STRING, INIFileName);
 	GetPrivateProfileString("MQ2Medley", "Medley", "", szTemp, MAX_STRING, INIFileName);
 	if (szTemp[0] != 0)
 	{
@@ -473,49 +549,97 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	Update_INIFileName(pCharInfo);
 
 	std::string iniSection = "MQ2Medley-" + medleyNameIni;
-	for (int i = 0; i < MAX_MEDLEY_SIZE; i++)
-	{
+	std::map<std::string, std::string> conditions;
+
+	// Read the number of conditions from the INI file
+	int numConditions = 0;
+	if (GetPrivateProfileString(iniSection.c_str(), "CondSize", "0", szTemp, MAX_STRING, INIFileName)) {
+		numConditions = atoi(szTemp); // Convert string to integer
+	}
+
+	// Parse conditions
+	for (int i = 0; i < numConditions; ++i) {
+		std::string conditionKey = "cond" + std::to_string(i + 1);
+		if (GetPrivateProfileString(iniSection.c_str(), conditionKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
+			conditions[conditionKey] = szTemp;
+		}
+	}
+
+	// 
+	// Parse equipment settings for each song type
+	std::vector<std::string> songTypes = { "sing", "percussion", "wind", "string", "brass" };
+	for (const auto& type : songTypes) {
+		if (GetPrivateProfileString(iniSection.c_str(), type.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
+			char* pItem = strtok_s(szTemp, "|", &pNext);
+			while (pItem) {
+				char* pSlot = strtok_s(nullptr, "|", &pNext);
+				if (pItem && pSlot) {
+					equipmentSettings[type].emplace_back(pItem, pSlot);
+				}
+				pItem = strtok_s(nullptr, "|", &pNext); // Move to next pair
+			}
+		}
+	}
+	//for (const auto& type : songTypes) {
+	//	if (GetPrivateProfileString(iniSection.c_str(), type.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
+	//		char* pItem = strtok_s(szTemp, "|", &pNext);
+	//		char* pHand = strtok_s(nullptr, "|", &pNext);
+	//		if (pItem && pHand) {
+	//			equipmentSettings[type] = std::make_pair(pItem, pHand);
+	//		}
+	//	}
+	//}
+	// Parse songs
+	for (int i = 0; i < MAX_MEDLEY_SIZE; i++) {
 		std::string songKey = "song" + std::to_string(i + 1);
-		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
-		{
+		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			SongData medleySong = nullSong;
 
-			//ugly ass split logic, example: song1=War March of Jocelyn^180.0^${Melee.Combat}
-			char* p = strtok_s(szTemp, "^", &pNext);
-			if (p)
-			{
+			char* p = strtok_s(szTemp, "|", &pNext); // Note: Separator changed to '|'
+			if (p) {
 				medleySong = getSongData(p);
 				if (medleySong.type == SongData::NOT_FOUND) {
 					WriteChatf("MQ2Medley::loadMedley - [%s] could not find song named \"%s\"", medleyNameIni.c_str(), p);
 					continue;
 				}
-				if (p = strtok_s(nullptr, "^", &pNext))
-				{
+				if (p = strtok_s(nullptr, "|", &pNext)) {
 					medleySong.durationExp = p;
-					if (p = strtok_s(nullptr, "^", &pNext))
-					{
-						medleySong.conditionalExp = p;
-						if (p = strtok_s(nullptr, "^", &pNext))
-						{
-							medleySong.targetExp = p;
+					if (p = strtok_s(nullptr, "|", &pNext)) {
+						// get Song Type from song string to use with weapon swapping.
+						medleySong.songType = p;
+						if (p = strtok_s(nullptr, "|", &pNext)) {
+							std::string conditionIdentifier = p;
+							// Lookup
+							// Lookup the actual condition expression using the identifier
+							if (conditions.find(conditionIdentifier) != conditions.end()) {
+								medleySong.conditionalExp = conditions[conditionIdentifier];
+							}
+							else {
+								// Handle the case where the condition identifier is not found
+								WriteChatf("MQ2Medley::loadMedley - Condition identifier '%s' not found, using default", conditionIdentifier.c_str());
+								medleySong.conditionalExp = "1"; // Default value
+							}
+
+							if (p = strtok_s(nullptr, "|", &pNext)) {
+								medleySong.targetExp = p;
+							}
 						}
 					}
 				}
 			}
-
-			std::string bandolierKey = "bandolier" + std::to_string(i + 1);
-			if (GetPrivateProfileString(iniSection.c_str(), bandolierKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
-			{
-				medleySong.bandolier = szTemp;
+			if (UseBandolier == 1) {
+				std::string bandolierKey = "bandolier" + std::to_string(i + 1);
+				if (GetPrivateProfileString(iniSection.c_str(), bandolierKey.c_str(), "", szTemp, MAX_STRING, INIFileName))
+				{
+					medleySong.bandolier = szTemp;
+				}
+				else
+				{
+					medleySong.bandolier = "1";
+				}
 			}
-			else
-			{
-				medleySong.bandolier = "1"; // or any default value you see fit
-			}
-
-			if (medleySong.type != SongData::NOT_FOUND)
-			{
-				if (!quiet) WriteChatf("MQ2Medley::loadMedley - [%s] adding Song %s^%s^%s", medleyNameIni.c_str(), medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.conditionalExp.c_str(), medleySong.bandolier.c_str());
+			if (medleySong.type != SongData::NOT_FOUND) {
+				// Add the song to the medley
 				medley.emplace_back(medleySong);
 			}
 		}
@@ -568,6 +692,13 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 		DebugMode = !DebugMode;
 		WriteChatf(PLUGIN_MSG "\atDebug mode is now %s\ax.", DebugMode ? "\ayON" : "\agOFF");
 		WritePrivateProfileInt("MQ2Medley", "Debug", DebugMode, INIFileName);
+		return;
+	}
+
+	if (!_strnicmp(szTemp, "bandolier", 9)) {
+		UseBandolier = !UseBandolier;
+		WriteChatf(PLUGIN_MSG "\atBandolier mode is now %s\ax.", UseBandolier ? "\ayON" : "\agOFF");
+		WritePrivateProfileInt("MQ2Medley", "Bandolier", UseBandolier, INIFileName);
 		return;
 	}
 
