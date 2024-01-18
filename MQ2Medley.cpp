@@ -119,7 +119,7 @@ song20=
 #include <mq/Plugin.h>
 
 PreSetup("MQ2Medley");
-PLUGIN_VERSION(0.6);
+PLUGIN_VERSION(1.08);
 
 #define PLUGIN_MSG "\arMQMedloy\au:: "
 
