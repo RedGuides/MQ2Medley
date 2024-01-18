@@ -131,7 +131,7 @@ song20=
 #include <mq/Plugin.h>
 
 PreSetup("MQ2Medley");
-PLUGIN_VERSION(0.6);
+PLUGIN_VERSION(1.08);
 
 #define PLUGIN_MSG "\arMQMedloy\au:: "
 
@@ -435,9 +435,6 @@ int32_t doCast(const SongData& SongTodo)
 							WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
 							return -1;
 						}
-						//
-						//
-						//
 
 						if (UseBandolier == 0) { // Use /exchange instead of bandolier
 							// Check if the song type is not 'noswap' and differs from the last song type
@@ -450,7 +447,6 @@ int32_t doCast(const SongData& SongTodo)
 								command += "/cast " + std::to_string(gemNum);
 								sprintf(szTemp, "%s", command.c_str());
 								lastSongType = SongTodo.songType;
-								//WriteChatf("MQ2Medley::doCast:: - s%", command.c_str());
 							}
 							else {
 								// Skip swap, just cast the song
@@ -466,11 +462,12 @@ int32_t doCast(const SongData& SongTodo)
 							}
 							else {
 								sprintf(szTemp, "/multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
-								lastSongType = SongTodo.songType;
 								DebugSpew("MQ2Medley::doCast - /multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
 							}
 						}
-
+						if (DebugMode) {
+							WriteChatf("MQ2Medley::doCast -  %s", szTemp);
+						}
 						DebugSpew("MQ2Medley::doCast -  %s", szTemp);
 						MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 						// FIXME: Narrowing conversion
