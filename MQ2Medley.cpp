@@ -133,7 +133,7 @@ song20=
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.08);
 
-#define PLUGIN_MSG "\arMQMedloy\au:: "
+#define PLUGIN_MSG "\arMQMedley\au:: "
 
 constexpr int MAX_MEDLEY_SIZE = 30;
 
@@ -435,6 +435,9 @@ int32_t doCast(const SongData& SongTodo)
 							WriteChatf("MQ2Medley::doCast - cannot find targetID=%d for to cast \"%s\", SKIPPING", SongTodo.targetID, SongTodo.name.c_str());
 							return -1;
 						}
+						//
+						//
+						//
 
 						if (UseBandolier == 0) { // Use /exchange instead of bandolier
 							// Check if the song type is not 'noswap' and differs from the last song type
@@ -447,10 +450,18 @@ int32_t doCast(const SongData& SongTodo)
 								command += "/cast " + std::to_string(gemNum);
 								sprintf(szTemp, "%s", command.c_str());
 								lastSongType = SongTodo.songType;
+								//WriteChatf("MQ2Medley::doCast:: - s%", command.c_str());
 							}
 							else {
-								// Skip swap, just cast the song
-								sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+								if (SongTodo.songType == "noswap" && SongTodo.songType != lastSongType) { // if set to noswap we want to have main and offhand weapons equipt.
+									sprintf(szTemp, "/multiline ; /stopsong ; /exchange \"%s\" mainhand; /exchange \"%s\" offhand; /cast %d", MainHand.c_str(), OffHand.c_str(), gemNum);
+									lastSongType = SongTodo.songType;
+									//WriteChatf("Debug::/multiline; / topsong; /exchange \"%s\" mainhand; /exchange \"%s\" offhand; /cast %d", MainHand.c_str(), OffHand.c_str(), gemNum);
+								}
+								else {
+									// Skip swap, just cast the song
+									sprintf(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
+								}
 							}
 						}
 						else { // Use bandolier instead
@@ -462,6 +473,7 @@ int32_t doCast(const SongData& SongTodo)
 							}
 							else {
 								sprintf(szTemp, "/multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
+								lastSongType = SongTodo.songType;
 								DebugSpew("MQ2Medley::doCast - /multiline ; /stopsong ; /bandolier activate %s ; /cast %d", SongTodo.bandolier.c_str(), gemNum);
 							}
 						}
@@ -520,7 +532,9 @@ void Load_MQ2Medley_INI(PCHARINFO pCharInfo)
 	UseBandolier = GetPrivateProfileInt("MQ2Medley", "Bandolier", 0, INIFileName) ? 1 : 0;
 	WritePrivateProfileInt("MQ2Medley", "Bandolier", UseBandolier, INIFileName);
 	GetPrivateProfileString("MQ2Medley", "MainHand", "", szTemp, MAX_STRING, INIFileName);
+	MainHand = szTemp;
 	GetPrivateProfileString("MQ2Medley", "OffHand", "", szTemp, MAX_STRING, INIFileName);
+	OffHand = szTemp;
 	GetPrivateProfileString("MQ2Medley", "Medley", "", szTemp, MAX_STRING, INIFileName);
 	if (szTemp[0] != 0)
 	{
