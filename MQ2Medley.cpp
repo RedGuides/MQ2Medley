@@ -121,7 +121,7 @@ song20=
 PreSetup("MQ2Medley");
 PLUGIN_VERSION(1.08);
 
-#define PLUGIN_MSG "\arMQMedloy\au:: "
+#define PLUGIN_MSG "\arMQMedley\au:: "
 
 constexpr int MAX_MEDLEY_SIZE = 30;
 
