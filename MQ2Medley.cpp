@@ -544,7 +544,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 {
 	char szTemp[MAX_STRING] = { 0 };
 	char* pNext;
-
+	equipmentSettings.clear();
 	medley.clear();
 	Update_INIFileName(pCharInfo);
 
