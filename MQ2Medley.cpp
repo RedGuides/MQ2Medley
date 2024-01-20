@@ -182,6 +182,7 @@ std::string MainHand = ""; // main hand weapon
 std::string OffHand = ""; // Offhand Weapon
 bool UseBandolier = false;
 std::string noswap = "";
+std::map<std::string, std::string> conditions; // Conditions map for lookup when building commands.
 std::map<std::string, std::string> lastSwapSet;	// SongType of last Song Played used to check for swapping
 // Song Data
 const SongData nullSong = SongData("", SongData::NOT_FOUND, 0);
@@ -247,9 +248,9 @@ void Evaluate(char *zOutput, char *zFormat, ...) {
 	//char zOutput[MAX_STRING]={0};
 	va_list vaList;
 	va_start(vaList, zFormat);
-	vsprintf_s(zOutput,MAX_STRING, zFormat, vaList);
+	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
 	//DebugSpewAlways("E[%s]",zOutput);
-	ParseMacroData(zOutput, MAX_STRING);
+	ParseMacroData(zOutput,MAX_STRING);
 	//DebugSpewAlways("R[%s]",zOutput);
 	//WriteChatf("::: zOutput = [ %s ]",zOutput);
 }
@@ -457,7 +458,7 @@ int32_t doCast(const SongData& SongTodo)
 
 								if (!swapNeeded) {
 									// If no swap needed, just cast the song
-									command = "/multiline ; /stopsong ; /cast " + std::to_string(gemNum);
+									command = "/multiline ; /stopsong ; ";
 								}
 							}
 							else {
@@ -572,11 +573,11 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	char *pNext;
 	swapSettings.clear();
 	medley.clear();
+	conditions.clear();
 	Update_INIFileName(pCharInfo);
-
 	std::string iniSection = "MQ2Medley-" + medleyNameIni;
 	WriteChatf("DEBUG::IniSection %s", iniSection.c_str());
-	std::map<std::string, std::string> conditions;
+		
 	// Parse swap settings
 	int swapIndex = 1; // Start with swap1
 	while (true) {
@@ -670,6 +671,10 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 					}
 					else {
 						medleySong.conditionalExp = "1";
+					}
+					if (p = strtok_s(nullptr, &separator, &pNext))
+					{
+						medleySong.targetExp = p;
 					}
 				}
 			}
@@ -1109,7 +1114,7 @@ PLUGIN_API void ShutdownPlugin()
 	RemoveMQ2Data("Medley");
 	swapSettings.clear();
 	medley.clear();
-	delete pMedleyType;
+	delete pMedleyType;	
 }
 
 
