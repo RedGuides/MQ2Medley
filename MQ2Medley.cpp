@@ -621,27 +621,38 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	// Parse songs
 	for (int i = 0; i < MAX_MEDLEY_SIZE; i++) {
 		std::string songKey = "song" + std::to_string(i + 1);
+		//
 		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			SongData medleySong = nullSong;
 
 			// Determine the separator
 			char separator = strchr(szTemp, '|') ? '|' : '^';
-			char *p = strtok_s(szTemp, &separator, &pNext); // Parse song name
-			if (p) {
-				medleySong = getSongData(p);
+			// strtok_s was breaking on using song names instead of gemNumbers when there was an ' in the name.
+			// Find the position of the first separator
+			char* separatorPos = strchr(szTemp, separator);
+
+			if (separatorPos != nullptr) {
+				// Manually extract the song name including special characters up to the separator
+				std::string songName(szTemp, separatorPos - szTemp);
+
+				// Get song data using the extracted song name
+				medleySong = getSongData(songName.c_str());
+
 				if (medleySong.type == SongData::NOT_FOUND) {
 					continue;
 				}
-				p = strtok_s(nullptr, &separator, &pNext); // Parse duration
+				char *pNext;
+				char *p = strtok_s(separatorPos + 1, &separator, &pNext); // Parse duration
+
 				if (p) {
 					medleySong.durationExp = p;
 
 					if (separator == '|') {
 						// New format: Parse swapSet or condition
-						p = strtok_s(nullptr, "|", &pNext);
+						p = strtok_s(nullptr, &separator, &pNext);
 						if (p && isKnownSwapSet(p)) {
 							medleySong.swapSet = p;
-							p = strtok_s(nullptr, "|", &pNext); // Parse condition
+							p = strtok_s(nullptr, &separator, &pNext); // Parse condition
 						}
 						else {
 							medleySong.swapSet = "noswap";
@@ -665,7 +676,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 						}
 						else {
 							// Old format: Direct condition
-							p = strtok_s(nullptr, "^", &pNext); // Parse condition directly
+							p = strtok_s(nullptr, &separator, &pNext); // Parse condition directly
 							medleySong.conditionalExp = p ? p : "1";
 						}
 					}
@@ -1114,7 +1125,8 @@ PLUGIN_API void ShutdownPlugin()
 	RemoveMQ2Data("Medley");
 	swapSettings.clear();
 	medley.clear();
-	delete pMedleyType;	
+	delete pMedleyType;
+	
 }
 
 
