@@ -182,6 +182,7 @@ std::string MainHand = ""; // main hand weapon
 std::string OffHand = ""; // Offhand Weapon
 bool UseBandolier = false;
 std::string noswap = "";
+std::map<std::string, std::string> conditions; // Conditions map for lookup when building commands.
 std::map<std::string, std::string> lastSwapSet;	// SongType of last Song Played used to check for swapping
 // Song Data
 const SongData nullSong = SongData("", SongData::NOT_FOUND, 0);
@@ -249,7 +250,7 @@ void Evaluate(char* zOutput, char* zFormat, ...) {
 	va_start(vaList, zFormat);
 	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
 	//DebugSpewAlways("E[%s]",zOutput);
-	ParseMacroData(zOutput, MAX_STRING);
+	ParseMacroData(zOutput,MAX_STRING);
 	//DebugSpewAlways("R[%s]",zOutput);
 	//WriteChatf("::: zOutput = [ %s ]",zOutput);
 }
@@ -458,7 +459,7 @@ int32_t doCast(const SongData& SongTodo)
 
 								if (!swapNeeded) {
 									// If no swap needed, just cast the song
-									command = "/multiline ; /stopsong ; /cast " + std::to_string(gemNum);
+									command = "/multiline ; /stopsong ; ";
 								}
 							}
 							else {
@@ -571,13 +572,14 @@ bool isKnownSwapSet(const std::string& type) {
 void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNameIni)
 {
 	char szTemp[MAX_STRING] = { 0 };
-	char* pNext;
+	char *pNext;
 	swapSettings.clear();
 	medley.clear();
+	conditions.clear();
 	Update_INIFileName(pCharInfo);
 	std::string iniSection = "MQ2Medley-" + medleyNameIni;
 	WriteChatf("DEBUG::IniSection %s", iniSection.c_str());
-	std::map<std::string, std::string> conditions;
+		
 	// Parse swap settings
 	int swapIndex = 1; // Start with swap1
 	while (true) {
@@ -585,9 +587,9 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 		//if (DebugMode) { WriteChatf("DEBUG::Attempting to read: %s", swapKey.c_str()); }
 		if (GetPrivateProfileString(iniSection.c_str(), swapKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			if (DebugMode) { WriteChatf("DEBUG::Read %s: %s", swapKey.c_str(), szTemp); }
-			char* pItem = strtok_s(szTemp, "|", &pNext);
+			char *pItem = strtok_s(szTemp, "|", &pNext);
 			while (pItem) {
-				char* pSlot = strtok_s(nullptr, "|", &pNext);
+				char *pSlot = strtok_s(nullptr, "|", &pNext);
 				if (pItem && pSlot) {
 					swapSettings[swapKey].emplace_back(pItem, pSlot);
 				}
@@ -621,28 +623,38 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	// Parse songs
 	for (int i = 0; i < MAX_MEDLEY_SIZE; i++) {
 		std::string songKey = "song" + std::to_string(i + 1);
+		//
 		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			SongData medleySong = nullSong;
 
 			// Determine the separator
 			char separator = strchr(szTemp, '|') ? '|' : '^';
-			char* p = strtok_s(szTemp, &separator, &pNext); // Parse song name
-			if (p) {
-				medleySong = getSongData(p);
+			// strtok_s was breaking on using song names instead of gemNumbers when there was an ' in the name.
+			// Find the position of the first separator
+			char* separatorPos = strchr(szTemp, separator);
+
+			if (separatorPos != nullptr) {
+				// Manually extract the song name including special characters up to the separator
+				std::string songName(szTemp, separatorPos - szTemp);
+
+				// Get song data using the extracted song name
+				medleySong = getSongData(songName.c_str());
+
 				if (medleySong.type == SongData::NOT_FOUND) {
 					continue;
 				}
+				char *pNext;
+				char *p = strtok_s(separatorPos + 1, &separator, &pNext); // Parse duration
 
-				p = strtok_s(nullptr, &separator, &pNext); // Parse duration
 				if (p) {
 					medleySong.durationExp = p;
 
 					if (separator == '|') {
 						// New format: Parse swapSet or condition
-						p = strtok_s(nullptr, "|", &pNext);
+						p = strtok_s(nullptr, &separator, &pNext);
 						if (p && isKnownSwapSet(p)) {
 							medleySong.swapSet = p;
-							p = strtok_s(nullptr, "|", &pNext); // Parse condition
+							p = strtok_s(nullptr, &separator, &pNext); // Parse condition
 						}
 						else {
 							medleySong.swapSet = "noswap";
@@ -652,7 +664,6 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 						// Old format: Default to noswap
 						medleySong.swapSet = "noswap";
 					}
-
 					// Parse condition for both formats
 					if (p) {
 						if (separator == '|') {
@@ -667,16 +678,19 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 						}
 						else {
 							// Old format: Direct condition
-							p = strtok_s(nullptr, "^", &pNext); // Parse condition directly
+							p = strtok_s(nullptr, &separator, &pNext); // Parse condition directly
 							medleySong.conditionalExp = p ? p : "1";
 						}
 					}
 					else {
 						medleySong.conditionalExp = "1";
 					}
+					if (p = strtok_s(nullptr, &separator, &pNext))
+					{
+						medleySong.targetExp = p;
+					}
 				}
 			}
-
 			// Read bandolier information if any, default to 1 if not
 			std::string bandolierKey = "bandolier" + std::to_string(i + 1);
 			if (GetPrivateProfileString(iniSection.c_str(), bandolierKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
@@ -698,7 +712,6 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	WriteChatf("MQ2Medley::loadMedley - [%s] %d song Medley loaded", medleyNameIni.c_str(), static_cast<int>(medley.size()));
 	GetPrivateProfileString(iniSection.c_str(), "SongIF", "", SongIF, MAX_STRING, INIFileName);
 	conditions.clear();
-
 }
 
 
@@ -811,7 +824,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//boolean isQueue = false;
 	//boolean isInterrupt = true;
 
-	if (!_strnicmp(szTemp, "queue", 4) || !_strnicmp(szTemp, "once", 4)) {
+	if (!_strnicmp(szTemp, "queue", 5) || !_strnicmp(szTemp, "once", 4)) {
 		WriteChatf(PLUGIN_MSG "\ayAdding to once queue");
 		argNum++;
 
@@ -1091,6 +1104,7 @@ const SongData scheduleNextSong()
 	}
 }
 
+
 // ******************************
 // **** MQ2 API Calls Follow ****
 // ******************************
@@ -1112,6 +1126,7 @@ PLUGIN_API void ShutdownPlugin()
 	swapSettings.clear();
 	medley.clear();
 	delete pMedleyType;
+	
 }
 
 PLUGIN_API void OnPulse()
@@ -1257,6 +1272,7 @@ PLUGIN_API void SetGameState(int GameState)
 		MQ2MedleyEnabled = false;
 	}
 }
+
 
 /**
 * SongData Impl
