@@ -623,85 +623,76 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	// Parse songs
 	for (int i = 0; i < MAX_MEDLEY_SIZE; i++) {
 		std::string songKey = "song" + std::to_string(i + 1);
-		//
 		if (GetPrivateProfileString(iniSection.c_str(), songKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 			SongData medleySong = nullSong;
 
 			// Determine the separator
 			char separator = strchr(szTemp, '|') ? '|' : '^';
-			// strtok_s was breaking on using song names instead of gemNumbers when there was an ' in the name.
 			// Find the position of the first separator
 			char* separatorPos = strchr(szTemp, separator);
 
 			if (separatorPos != nullptr) {
 				// Manually extract the song name including special characters up to the separator
 				std::string songName(szTemp, separatorPos - szTemp);
-
-				// Get song data using the extracted song name
 				medleySong = getSongData(songName.c_str());
 
 				if (medleySong.type == SongData::NOT_FOUND) {
 					continue;
 				}
-				char *pNext;
-				char *p = strtok_s(separatorPos + 1, &separator, &pNext); // Parse duration
 
+				// Move to the next part for parsing duration, swapSet, and condition
+				char *p = strtok_s(separatorPos + 1, &separator, &pNext);
+
+				// Parse duration
 				if (p) {
 					medleySong.durationExp = p;
+					p = strtok_s(nullptr, &separator, &pNext); // Move to the next part
+				}
 
-					if (separator == '|') {
-						// New format: Parse swapSet or condition
-						p = strtok_s(nullptr, &separator, &pNext);
-						if (p && isKnownSwapSet(p)) {
-							medleySong.swapSet = p;
-							p = strtok_s(nullptr, &separator, &pNext); // Parse condition
-						}
-						else {
-							medleySong.swapSet = "noswap";
-						}
-					}
-					else {
-						// Old format: Default to noswap
+				// Parse swapSet or condition
+				if (p) {
+					if (isKnownSwapSet(p)) {
+						medleySong.swapSet = p;
+						p = strtok_s(nullptr, &separator, &pNext); // Move to condition
+					} else {
 						medleySong.swapSet = "noswap";
 					}
-					// Parse condition for both formats
-					if (p) {
-						if (separator == '|') {
-							// New format with condition mapping
-							auto it = conditions.find(p); // make sure p is valid.
-							if (it != conditions.end()) {
-								medleySong.conditionalExp = it->second;
-							}
-							else {
-								medleySong.conditionalExp = "1"; // Default condition value
-							}
+				} else {
+					medleySong.swapSet = "noswap";
+				}
+
+				// Parse condition for both formats
+				if (p) {
+					if (separator == '|') {
+						auto it = conditions.find(p);
+						if (it != conditions.end()) {
+							medleySong.conditionalExp = it->second;
+						} else {
+							medleySong.conditionalExp = "1";
 						}
-						else {
-							// Old format: Direct condition
-							p = strtok_s(nullptr, &separator, &pNext); // Parse condition directly
-							medleySong.conditionalExp = p ? p : "1";
-						}
+					} else {
+						medleySong.conditionalExp = p ? p : "1";
 					}
-					else {
-						medleySong.conditionalExp = "1";
-					}
-					if (p = strtok_s(nullptr, &separator, &pNext))
-					{
-						medleySong.targetExp = p;
-					}
+				} else {
+					medleySong.conditionalExp = "1";
+				}
+				p = strtok_s(nullptr, &separator, &pNext);
+				if (p) {
+					medleySong.targetExp = p;
 				}
 			}
-			// Read bandolier information if any, default to 1 if not
+			// Read bandolier information
 			std::string bandolierKey = "bandolier" + std::to_string(i + 1);
 			if (GetPrivateProfileString(iniSection.c_str(), bandolierKey.c_str(), "", szTemp, MAX_STRING, INIFileName)) {
 				medleySong.bandolier = szTemp;
-			}
-			else {
-				medleySong.bandolier = "1"; // Default value
+			} else {
+				medleySong.bandolier = "1";
 			}
 
 			if (DebugMode) {
-				WriteChatf("Debug: Processing song - Name: %s, Duration: %s, SwapSet: %s, Condition: %s, Bandolier: %s", medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.swapSet.c_str(), medleySong.conditionalExp.c_str(), medleySong.bandolier.c_str());
+				WriteChatf("Debug: Processing song - Name: %s, Duration: %s, SwapSet: %s, Condition: %s, Bandolier: %s", 
+					medleySong.name.c_str(), medleySong.durationExp.c_str(), medleySong.swapSet.c_str(), 
+					medleySong.conditionalExp.c_str(), medleySong.bandolier.c_str());
 			}
 
 			if (medleySong.type != SongData::NOT_FOUND) {
@@ -713,7 +704,6 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	GetPrivateProfileString(iniSection.c_str(), "SongIF", "", SongIF, MAX_STRING, INIFileName);
 	conditions.clear();
 }
-
 
 void StopTwistCommand(PSPAWNINFO pChar, PCHAR szLine)
 {
