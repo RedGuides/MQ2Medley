@@ -250,7 +250,7 @@ void Evaluate(char* zOutput, char* zFormat, ...) {
 	va_start(vaList, zFormat);
 	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
 	//DebugSpewAlways("E[%s]",zOutput);
-	ParseMacroData(zOutput,MAX_STRING);
+	ParseMacroData(zOutput, MAX_STRING);
 	//DebugSpewAlways("R[%s]",zOutput);
 	//WriteChatf("::: zOutput = [ %s ]",zOutput);
 }
@@ -579,7 +579,7 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 	Update_INIFileName(pCharInfo);
 	std::string iniSection = "MQ2Medley-" + medleyNameIni;
 	WriteChatf("DEBUG::IniSection %s", iniSection.c_str());
-		
+
 	// Parse swap settings
 	int swapIndex = 1; // Start with swap1
 	while (true) {
@@ -628,58 +628,75 @@ void Load_MQ2Medley_INI_Medley(PCHARINFO pCharInfo, const std::string& medleyNam
 
 			// Determine the separator
 			char separator = strchr(szTemp, '|') ? '|' : '^';
-			// Find the position of the first separator
-			char* separatorPos = strchr(szTemp, separator);
+			char* nextPart = strchr(szTemp, separator);
 
-			if (separatorPos != nullptr) {
-				// Manually extract the song name including special characters up to the separator
-				std::string songName(szTemp, separatorPos - szTemp);
+			// Extract song name
+			if (nextPart != nullptr) {
+				std::string songName(szTemp, nextPart - szTemp);
 				medleySong = getSongData(songName.c_str());
-
 				if (medleySong.type == SongData::NOT_FOUND) {
 					continue;
 				}
+			} else {
+				// Handle case where no separator is found
+				medleySong = getSongData(szTemp);
+				if (medleySong.type == SongData::NOT_FOUND) {
+					continue;
+				}
+				nextPart = szTemp + strlen(szTemp); // Set nextPart to the end of the string
+			}
 
-				// Move to the next part for parsing duration, swapSet, and condition
-				char *p = strtok_s(separatorPos + 1, &separator, &pNext);
-
+			// Move to the next part for parsing duration, swapSet, and condition
+			char* p = nextPart + 1;
+			if (p && *p != '\0') {
 				// Parse duration
-				if (p) {
-					medleySong.durationExp = p;
-					p = strtok_s(nullptr, &separator, &pNext); // Move to the next part
+				char* durationEnd = strchr(p, separator);
+				if (durationEnd != nullptr) {
+					medleySong.durationExp.assign(p, durationEnd - p);
+					p = durationEnd + 1; // Move past the separator
+				} else {
+					medleySong.durationExp = p; // Assign remaining string to duration
+					p = nullptr; // No more data to parse
 				}
+			}
 
-				// Parse swapSet or condition
-				if (p) {
-					if (isKnownSwapSet(p)) {
-						medleySong.swapSet = p;
-						p = strtok_s(nullptr, &separator, &pNext); // Move to condition
+			// Parse swapSet or condition
+			if (p && *p != '\0') {
+				char* swapSetEnd = strchr(p, separator);
+				if (swapSetEnd != nullptr) {
+					std::string swapSet(p, swapSetEnd - p);
+					if (isKnownSwapSet(swapSet)) {
+						medleySong.swapSet = swapSet;
+						p = swapSetEnd + 1; // Move past the separator
 					} else {
-						medleySong.swapSet = "noswap";
+						medleySong.swapSet = "noswap"; // Default to noswap
 					}
 				} else {
-					medleySong.swapSet = "noswap";
+					medleySong.swapSet = "noswap"; // Default to noswap
 				}
+			}
 
-				// Parse condition for both formats
-				if (p) {
-					if (separator == '|') {
-						auto it = conditions.find(p);
-						if (it != conditions.end()) {
-							medleySong.conditionalExp = it->second;
-						} else {
-							medleySong.conditionalExp = "1";
-						}
+			// Parse condition for both formats
+			if (p && *p != '\0') {
+				if (separator == '|') {
+					// New format with condition mapping
+					auto it = conditions.find(p);
+					if (it != conditions.end()) {
+						medleySong.conditionalExp = it->second;
 					} else {
-						medleySong.conditionalExp = p ? p : "1";
+						medleySong.conditionalExp = p; // Direct condition or default
 					}
 				} else {
-					medleySong.conditionalExp = "1";
+					// Old format: Direct condition
+					medleySong.conditionalExp = p;
 				}
-				p = strtok_s(nullptr, &separator, &pNext);
-				if (p) {
-					medleySong.targetExp = p;
-				}
+			} else {
+				medleySong.conditionalExp = "1"; // Default condition if not specified
+			}
+			//Parse Target
+			if (p = strtok_s(nullptr, &separator, &pNext))
+			{
+				medleySong.targetExp = p;
 			}
 			// Read bandolier information
 			std::string bandolierKey = "bandolier" + std::to_string(i + 1);
@@ -814,7 +831,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//boolean isQueue = false;
 	//boolean isInterrupt = true;
 
-	if (!_strnicmp(szTemp, "queue", 5) || !_strnicmp(szTemp, "once", 4)) {
+	if (!_strnicmp(szTemp, "queue", 4) || !_strnicmp(szTemp, "once", 4)) {
 		WriteChatf(PLUGIN_MSG "\ayAdding to once queue");
 		argNum++;
 
@@ -1094,7 +1111,6 @@ const SongData scheduleNextSong()
 	}
 }
 
-
 // ******************************
 // **** MQ2 API Calls Follow ****
 // ******************************
@@ -1116,7 +1132,7 @@ PLUGIN_API void ShutdownPlugin()
 	swapSettings.clear();
 	medley.clear();
 	delete pMedleyType;
-	
+
 }
 
 PLUGIN_API void OnPulse()
@@ -1262,7 +1278,6 @@ PLUGIN_API void SetGameState(int GameState)
 		MQ2MedleyEnabled = false;
 	}
 }
-
 
 /**
 * SongData Impl
