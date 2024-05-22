@@ -49,7 +49,7 @@ Usage:
 
 ----------------------------
 Item Click Method:
-MQ2Medley uses /cast item "ItemName"
+MQ2Medley uses /useitem "ItemName"
 
 ----------------------------
 Examples:
@@ -398,7 +398,7 @@ int32_t doCast(const SongData& SongTodo)
 				return -1;
 			case SongData::ITEM:
 				DebugSpew("MQ2Medley::doCast - Next Song (Casting Item  \"%s\")", SongTodo.name.c_str());
-				sprintf_s(szTemp, "/multiline ; /stopsong ; /cast item \"%s\"", SongTodo.name.c_str());
+				sprintf_s(szTemp, "/multiline ; /stopsong ; /useitem \"%s\"", SongTodo.name.c_str());
 				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
 				// FIXME: Narrowing conversion
 				return SongTodo.getCastTimeMs();
