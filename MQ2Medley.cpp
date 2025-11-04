@@ -191,15 +191,12 @@ double getTimeTillQueueEmpty()
 }
 
 // FIXME:  This is likely not needed
-void Evaluate(char *zOutput, char *zFormat, ...) {
-	//char zOutput[MAX_STRING]={0};
+void Evaluate(char* zOutput, const char* zFormat, ...)
+{
 	va_list vaList;
 	va_start(vaList, zFormat);
 	vsprintf_s(zOutput, MAX_STRING, zFormat, vaList);
-	//DebugSpewAlways("E[%s]",zOutput);
-	ParseMacroData(zOutput,MAX_STRING);
-	//DebugSpewAlways("R[%s]",zOutput);
-	//WriteChatf("::: zOutput = [ %s ]",zOutput);
+	ParseMacroData(zOutput, MAX_STRING);
 }
 
 
@@ -225,10 +222,10 @@ int GetAACastTime(const std::string& AAName)
 	return GetIntFromString(zOutput, -1);
 }
 
-void MQ2MedleyDoCommand(PSPAWNINFO pChar, PCHAR szLine)
+void MQ2MedleyDoCommand(const char* szLine)
 {
-	DebugSpew("MQ2Medley::MQ2MedleyDoCommand(pChar, %s)", szLine);
-	HideDoCommand(pChar, szLine, FromPlugin);
+	DebugSpew("MQ2Medley::MQ2MedleyDoCommand(%s)", szLine);
+	DoCommand(szLine);
 }
 
 int GemCastTime(const std::string& spellName)
@@ -388,7 +385,7 @@ int32_t doCast(const SongData& SongTodo)
 						}
 
 						sprintf_s(szTemp, "/multiline ; /stopsong ; /cast %d", gemNum);
-						MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
+						MQ2MedleyDoCommand(szTemp);
 						// FIXME: Narrowing conversion
 						return SongTodo.getCastTimeMs();
 					}
@@ -399,13 +396,13 @@ int32_t doCast(const SongData& SongTodo)
 			case SongData::ITEM:
 				DebugSpew("MQ2Medley::doCast - Next Song (Casting Item  \"%s\")", SongTodo.name.c_str());
 				sprintf_s(szTemp, "/multiline ; /stopsong ; /useitem \"%s\"", SongTodo.name.c_str());
-				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
+				MQ2MedleyDoCommand(szTemp);
 				// FIXME: Narrowing conversion
 				return SongTodo.getCastTimeMs();
 			case SongData::AA:
 				DebugSpew("MQ2Medley::doCast - Next Song (Casting AA  \"%s\")", SongTodo.name.c_str());
 				sprintf_s(szTemp, "/multiline ; /stopsong ; /alt act ${Me.AltAbility[%s].ID}", SongTodo.name.c_str());
-				MQ2MedleyDoCommand(GetCharInfo()->pSpawn, szTemp);
+				MQ2MedleyDoCommand(szTemp);
 				// FIXME: Narrowing conversion
 				return SongTodo.getCastTimeMs();
 			default:
@@ -501,7 +498,7 @@ void StopTwistCommand(PSPAWNINFO pChar, PCHAR szLine)
 	GetArg(szTemp, szLine, 1);
 	bTwist = false;
 	currentSong = nullSong;
-	MQ2MedleyDoCommand(pChar, "/stopsong");
+	MQ2MedleyDoCommand("/stopsong");
 	if (_strnicmp(szTemp, "silent", 6))
 		WriteChatf(PLUGIN_MSG "\atStopping Medley");
 	WritePrivateProfileInt("MQ2Medley", "Playing", bTwist, INIFileName);
@@ -626,7 +623,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 			else if (!_strnicmp(szTemp, "-interrupt", 10)) {
 				currentSong = nullSong;
 				CastDue = 0;
-				MQ2MedleyDoCommand(pChar, "/stopsong");
+				MQ2MedleyDoCommand("/stopsong");
 			}
 
 		} while (true);
@@ -672,7 +669,7 @@ void MedleyCommand(PSPAWNINFO pChar, PCHAR szLine)
 	//	{
 	//		currentSong = nullSong;
 	//		CastDue = 0;
-	//		MQ2MedleyDoCommand(pChar, "/stopsong");
+	//		MQ2MedleyDoCommand("/stopsong");
 	//	}
 
 	//}
@@ -722,7 +719,7 @@ bool CheckCharState()
 			//bTwist = false;
 			return false;
 		case STANDSTATE_FEIGN:
-			MQ2MedleyDoCommand(GetCharInfo()->pSpawn, "/stand");
+			MQ2MedleyDoCommand("/stand");
 			return false;
 		case STANDSTATE_DEAD:
 			WriteChatf(PLUGIN_MSG "\ayStopping Twist.");
